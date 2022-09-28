@@ -1,106 +1,211 @@
-fragment,colony,species,tank,treatment,notes
-A1,A,Apulchra,1,,Parent starting to die - may need to re frag
-A2,A,Apulchra,1,,Parent starting to die - may need to re frag
-A3,A,Apulchra,1,,Parent starting to die - may need to re frag
-A4,A,Apulchra,1,,Parent starting to die - may need to re frag
-A5,A,Apulchra,1,,Parent starting to die - may need to re frag
-A6,A,Apulchra,2,,Parent starting to die - may need to re frag
-A7,A,Apulchra,2,,Parent starting to die - may need to re frag
-A8,A,Apulchra,2,,Parent starting to die - may need to re frag
-A9,A,Apulchra,2,,Parent starting to die - may need to re frag
-A10,A,Apulchra,2,,Parent starting to die - may need to re frag
-A11,A,Apulchra,2,,Parent starting to die - may need to re frag
-A12,A,Apulchra,3,,Parent starting to die - may need to re frag
-A13,A,Apulchra,3,,Parent starting to die - may need to re frag
-A14,A,Apulchra,3,,Parent starting to die - may need to re frag
-A15,A,Apulchra,3,,Parent starting to die - may need to re frag
-A16,A,Apulchra,3,,Parent starting to die - may need to re frag
-A17,A,Apulchra,3,,Parent starting to die - may need to re frag
-A18,A,Apulchra,4,,Parent starting to die - may need to re frag
-A19,A,Apulchra,4,,Parent starting to die - may need to re frag
-A20,A,Apulchra,4,,Parent starting to die - may need to re frag
-A21,A,Apulchra,4,,Parent starting to die - may need to re frag
-A22,A,Apulchra,4,,Parent starting to die - may need to re frag
-A23,A,Apulchra,4,,Parent starting to die - may need to re frag
-A24,A,Apulchra,5,,Parent starting to die - may need to re frag
-A25,A,Apulchra,5,,Parent starting to die - may need to re frag
-A26,A,Apulchra,5,,Parent starting to die - may need to re frag
-A27,A,Apulchra,5,,Parent starting to die - may need to re frag
-A28,A,Apulchra,5,,Parent starting to die - may need to re frag
-A29,A,Apulchra,5,,Parent starting to die - may need to re frag
-A30,A,Apulchra,6,,Parent starting to die - may need to re frag
-A31,A,Apulchra,6,,Parent starting to die - may need to re frag
-A32,A,Apulchra,6,,Parent starting to die - may need to re frag
-A33,A,Apulchra,6,,Parent starting to die - may need to re frag
-A34,A,Apulchra,6,,Parent starting to die - may need to re frag
-A35,A,Apulchra,6,,Parent starting to die - may need to re frag
-B1,B,Apulchra,1,,
-B2,B,Apulchra,1,,
-B3,B,Apulchra,1,,
-B4,B,Apulchra,1,,
-B5,B,Apulchra,1,,
-B6,B,Apulchra,2,,
-B7,B,Apulchra,2,,
-B8,B,Apulchra,2,,
-B9,B,Apulchra,2,,
-B10,B,Apulchra,2,,
-B11,B,Apulchra,2,,
-B12,B,Apulchra,3,,
-B13,B,Apulchra,3,,
-B14,B,Apulchra,3,,
-B15,B,Apulchra,3,,
-B16,B,Apulchra,3,,
-B17,B,Apulchra,3,,
-B18,B,Apulchra,4,,
-B19,B,Apulchra,4,,
-B20,B,Apulchra,4,,
-B21,B,Apulchra,4,,
-B22,B,Apulchra,4,,
-B23,B,Apulchra,4,,
-B24,B,Apulchra,5,,
-B25,B,Apulchra,5,,
-B26,B,Apulchra,5,,
-B27,B,Apulchra,5,,
-B28,B,Apulchra,5,,
-B29,B,Apulchra,5,,
-B30,B,Apulchra,6,,
-B31,B,Apulchra,6,,
-B32,B,Apulchra,6,,
-B33,B,Apulchra,6,,
-B34,B,Apulchra,6,,
-B35,B,Apulchra,6,,
-C1,C,Apulchra,1,,
-C2,C,Apulchra,1,,
-C3,C,Apulchra,1,,
-C4,C,Apulchra,1,,
-C5,C,Apulchra,1,,
-C6,C,Apulchra,1,,
-C7,C,Apulchra,2,,
-C8,C,Apulchra,2,,
-C9,C,Apulchra,2,,
-C10,C,Apulchra,2,,
-C11,C,Apulchra,2,,
-C12,C,Apulchra,3,,
-C13,C,Apulchra,3,,
-C14,C,Apulchra,3,,
-C15,C,Apulchra,3,,
-C16,C,Apulchra,3,,
-C17,C,Apulchra,3,,
-C18,C,Apulchra,4,,
-C19,C,Apulchra,4,,
-C20,C,Apulchra,4,,
-C21,C,Apulchra,4,,
-C22,C,Apulchra,4,,
-C23,C,Apulchra,4,,
-C24,C,Apulchra,5,,
-C25,C,Apulchra,5,,
-C26,C,Apulchra,5,,
-C27,C,Apulchra,5,,
-C28,C,Apulchra,5,,
-C29,C,Apulchra,5,,
-C30,C,Apulchra,6,,
-C31,C,Apulchra,6,,
-C32,C,Apulchra,6,,
-C33,C,Apulchra,6,,
-C34,C,Apulchra,6,,
-C35,C,Apulchra,6,,
+fragment,colony,tank,treatment,date.fragmented
+A1,A,,,
+A2,A,,,
+A3,A,,,
+A4,A,,,
+A5,A,,,
+A6,A,,,
+A7,A,,,
+A8,A,,,
+A9,A,,,
+A10,A,,,
+A11,A,,,
+A12,A,,,
+A13,A,,,
+A14,A,,,
+A15,A,,,
+A16,A,,,
+A17,A,,,
+A18,A,,,
+A19,A,,,
+A20,A,,,
+A21,A,,,
+A22,A,,,
+A23,A,,,
+A24,A,,,
+A25,A,,,
+A26,A,,,
+A27,A,,,
+A28,A,,,
+A29,A,,,
+A30,A,,,
+A31,A,,,
+A32,A,,,
+A33,A,,,
+A34,A,,,
+A35,A,,,
+B1,B,1,,20220926
+B2,B,1,,20220926
+B3,B,1,,20220926
+B4,B,1,,20220926
+B5,B,1,,20220926
+B6,B,2,,20220926
+B7,B,2,,20220926
+B8,B,2,,20220926
+B9,B,2,,20220926
+B10,B,2,,20220926
+B11,B,2,,20220926
+B12,B,3,,20220926
+B13,B,3,,20220926
+B14,B,3,,20220926
+B15,B,3,,20220926
+B16,B,3,,20220926
+B17,B,3,,20220926
+B18,B,4,,20220926
+B19,B,4,,20220926
+B20,B,4,,20220926
+B21,B,4,,20220926
+B22,B,4,,20220926
+B23,B,4,,20220926
+B24,B,5,,20220926
+B25,B,5,,20220926
+B26,B,5,,20220926
+B27,B,5,,20220926
+B28,B,5,,20220926
+B29,B,5,,20220926
+B30,B,6,,20220926
+B31,B,6,,20220926
+B32,B,6,,20220926
+B33,B,6,,20220926
+B34,B,6,,20220926
+B35,B,6,,20220926
+C1,C,1,,20220926
+C2,C,1,,20220926
+C3,C,1,,20220926
+C4,C,1,,20220926
+C5,C,1,,20220926
+C6,C,1,,20220926
+C7,C,2,,20220926
+C8,C,2,,20220926
+C9,C,2,,20220926
+C10,C,2,,20220926
+C11,C,2,,20220926
+C12,C,3,,20220926
+C13,C,3,,20220926
+C14,C,3,,20220926
+C15,C,3,,20220926
+C16,C,3,,20220926
+C17,C,3,,20220926
+C18,C,4,,20220926
+C19,C,4,,20220926
+C20,C,4,,20220926
+C21,C,4,,20220926
+C22,C,4,,20220926
+C23,C,4,,20220926
+C24,C,5,,20220926
+C25,C,5,,20220926
+C26,C,5,,20220926
+C27,C,5,,20220926
+C28,C,5,,20220926
+C29,C,5,,20220926
+C30,C,6,,20220926
+C31,C,6,,20220926
+C32,C,6,,20220926
+C33,C,6,,20220926
+C34,C,6,,20220926
+C35,C,6,,20220926
+D1,D,1,,20220927
+D2,D,1,,20220927
+D3,D,1,,20220927
+D4,D,1,,20220927
+D5,D,1,,20220927
+D6,D,1,,20220927
+D7,D,2,,20220927
+D8,D,2,,20220927
+D9,D,2,,20220927
+D10,D,2,,20220927
+D11,D,2,,20220927
+D12,D,3,,20220927
+D13,D,3,,20220927
+D14,D,3,,20220927
+D15,D,3,,20220927
+D16,D,3,,20220927
+D17,D,3,,20220927
+D18,D,4,,20220927
+D19,D,4,,20220927
+D20,D,4,,20220927
+D21,D,4,,20220927
+D22,D,4,,20220927
+D23,D,4,,20220927
+D24,D,5,,20220927
+D25,D,5,,20220927
+D26,D,5,,20220927
+D27,D,5,,20220927
+D28,D,5,,20220927
+D29,D,5,,20220927
+D30,D,6,,20220927
+D31,D,6,,20220927
+D32,D,6,,20220927
+D33,D,6,,20220927
+D34,D,6,,20220927
+D35,D,6,,20220927
+E1,E,1,,20220927
+E2,E,1,,20220927
+E3,E,1,,20220927
+E4,E,1,,20220927
+E5,E,1,,20220927
+E6,E,1,,20220927
+E7,E,2,,20220927
+E8,E,2,,20220927
+E9,E,2,,20220927
+E10,E,2,,20220927
+E11,E,2,,20220927
+E12,E,2,,20220927
+E13,E,3,,20220927
+E14,E,3,,20220927
+E15,E,3,,20220927
+E16,E,3,,20220927
+E17,E,3,,20220927
+E18,E,4,,20220927
+E19,E,4,,20220927
+E20,E,4,,20220927
+E21,E,4,,20220927
+E22,E,4,,20220927
+E23,E,4,,20220927
+E24,E,5,,20220927
+E25,E,5,,20220927
+E26,E,5,,20220927
+E27,E,5,,20220927
+E28,E,5,,20220927
+E29,E,5,,20220927
+E30,E,6,,20220927
+E31,E,6,,20220927
+E32,E,6,,20220927
+E33,E,6,,20220927
+E34,E,6,,20220927
+E35,E,6,,20220927
+F1,F,,,
+F2,F,,,
+F3,F,,,
+F4,F,,,
+F5,F,,,
+F6,F,,,
+F7,F,,,
+F8,F,,,
+F9,F,,,
+F10,F,,,
+F11,F,,,
+F12,F,,,
+F13,F,,,
+F14,F,,,
+F15,F,,,
+F16,F,,,
+F17,F,,,
+F18,F,,,
+F19,F,,,
+F20,F,,,
+F21,F,,,
+F22,F,,,
+F23,F,,,
+F24,F,,,
+F25,F,,,
+F26,F,,,
+F27,F,,,
+F28,F,,,
+F29,F,,,
+F30,F,,,
+F31,F,,,
+F32,F,,,
+F33,F,,,
+F34,F,,,
+F35,F,,,
