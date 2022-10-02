@@ -1,0 +1,165 @@
+---
+title: "Calibrating light and temperature loggers"
+author: "Ariana S Huffmyer"
+date: "9/30/2022"
+output: 
+  html_document:
+    code_folding: hide
+    toc: yes
+    toc_depth: 6
+    toc_float: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+# Set Up    
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(stringr)
+library(readxl)
+library(purrr)
+```
+
+# Read in files  
+
+Read in Hobo Pendant files  
+```{r}
+pendant.files <- list.files(path="data/environmental/loggers/calibration/pendants", pattern="*.xlsx", full.names=TRUE)
+
+pendants <- setNames(pendant.files, pendant.files) %>%
+   map_dfr(read_excel, .id = "logger") %>%
+   rename(DateTime=`Date-Time (French Polynesia Standard Time)`, Temp.C.pendant=`Ch: 1 - Temperature   (°C )`, Light.lux=`Ch: 2 - Light   (lux)`)%>%
+  select(!`#`)%>%
+  mutate(logger=sub(".*/", "", logger))%>% #remove the path name
+  mutate(logger=sub("_.*", "", logger)) #keep only the serial number 
+```
+
+Read in Hobo temperature files.     
+```{r}
+hobo.files <- list.files(path="data/environmental/loggers/calibration/hobo", pattern="*.csv", full.names=TRUE)
+
+hobo <- setNames(hobo.files, hobo.files) %>%
+   map_dfr(read_csv, .id = "logger", skip=1)%>%
+   mutate(logger=sub(".*/", "", logger))%>% #remove the path name
+   mutate(logger=sub("_.*", "", logger))%>% #keep only the serial number
+   select(!'#')%>%
+   select(logger, `Date Time, GMT-10:00`, starts_with("Temp"))%>%
+   rename(DateTime=`Date Time, GMT-10:00`, Temp1=`Temp, °C (LGR S/N: 20444033, SEN S/N: 20444033, LBL: C)`, Temp2=`Temp, °C (LGR S/N: 20719656, SEN S/N: 20719656, LBL: C)`, Temp3=`Temp, °C (LGR S/N: 20444040, SEN S/N: 20444040)`, Temp4=`Temp, °C (LGR S/N: 20946644, SEN S/N: 20946644)`)%>%
+   mutate(Temp.C.hobo = coalesce(Temp1, Temp2, Temp3, Temp4))%>%
+  select(logger, DateTime, Temp.C.hobo)
+
+#convert Date Time to posix 
+hobo$DateTime<-format(as.POSIXct(hobo$DateTime,format='%m/%d/%y %I:%M:%S %p'),format="%m/%d/%y %H:%M:%S")
+hobo$DateTime<-as.POSIXct(hobo$DateTime,format="%m/%d/%y %H:%M:%S")
+```
+
+Read in Odyssey light logger.  
+```{r}
+light<-read_csv("data/environmental/loggers/calibration/odyssey/15643_20220925_light_calib.csv", skip=7)
+
+colnames(light)<-c("number", "Date", "Time", "Raw.PAR", "Calibrated.PAR")
+
+light <- light %>%
+  mutate(DateTime = paste(Date, Time))%>%
+  mutate(DateTime = as.POSIXct(DateTime,format="%d/%m/%Y %H:%M:%S"))%>%
+  select(DateTime, Calibrated.PAR)%>%
+  rename(Light.PAR=Calibrated.PAR)%>%
+  mutate(logger="15643")
+```
+
+# Merge files together  
+
+First make a list of the SNs for each type of logger before spreading to wide format for each.  
+```{r}
+hobo_list<-levels(as.factor(hobo$logger))
+pendant_list<-levels(as.factor(pendants$logger))
+light_list<-levels(as.factor(light$logger))
+```
+
+Convert each data frame to wide format.  
+```{r}
+hobo<-hobo%>%
+  spread(value=Temp.C.hobo, key=logger)
+
+#make two for pendants - one for light one for temp
+pendants_light<-pendants%>%
+  select(!Temp.C.pendant)%>%
+  spread(value=Light.lux, key=logger)
+
+pendants_temp<-pendants%>%
+  select(!Light.lux)%>%
+  spread(value=Temp.C.pendant, key=logger)
+
+light<-light%>%
+  spread(value=Light.PAR, key=logger)
+```
+
+
+Something gets messed up here - check tz in all data frames to make sure they are the same upon merging 
+
+
+
+```{r}
+cal_light<-left_join(pendants_light, light)
+
+
+cal_temp<-inner_join(hobo, pendants_temp)
+```
+
+# Temperature calibrations 
+
+Plot temperature logging over time for each logger and color by black loggers and pendants.  
+
+```{r}
+temp_plot<-cal_temp%>%
+  gather(value=temp, key=logger, -DateTime)%>%
+  
+  ggplot(aes(x=DateTime, y=temp, colour=logger))+
+  geom_line()+
+  theme_classic(); temp_plot
+
+```
+
+Something is off about the time stamps for a few loggers. Look into this. 
+
+
+
+
+
+
+
+The time stamp for loggers 
+
+
+Calculate mean hobo loogers, this will be our standard temperature.  
+
+Calculate the correlation curve at each observation from the mean hobo loggers for each individual logger.  
+
+Output to a data frame to use in future analysis with these loggers.  
+
+
+# Light calibrations  
+
+Plot temperature logging over time for each logger and color by odyssey and pendants.  
+```{r}
+light_plot<-cal_light%>%
+  #select(DateTime, `15643`)%>%
+  gather(value=light, key=logger, -DateTime)%>%
+  
+  ggplot(aes(x=DateTime, y=light, colour=logger))+
+  geom_line()+
+  theme_classic(); light_plot
+
+```
+
+Is the time stamp off for the odyssey logger???? Nee to calculate the offset issue that we are having and re run all scripts from data upload 
+
+
+Calculate the correlation curve at each observation from the odyssey loggers for each individual logger.  
+
+Output to a data frame to use in future analysis with these loggers.  
