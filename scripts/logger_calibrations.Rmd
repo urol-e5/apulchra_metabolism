@@ -23,6 +23,7 @@ library(tidyverse)
 library(stringr)
 library(readxl)
 library(purrr)
+library(lubridate)
 ```
 
 # Read in files  
@@ -37,6 +38,9 @@ pendants <- setNames(pendant.files, pendant.files) %>%
   select(!`#`)%>%
   mutate(logger=sub(".*/", "", logger))%>% #remove the path name
   mutate(logger=sub("_.*", "", logger)) #keep only the serial number 
+
+#adjust time to correct values and force time zone
+pendants$DateTime <- force_tz(pendants$DateTime, tzone = "Pacific/Tahiti")
 ```
 
 Read in Hobo temperature files.     
@@ -54,8 +58,8 @@ hobo <- setNames(hobo.files, hobo.files) %>%
   select(logger, DateTime, Temp.C.hobo)
 
 #convert Date Time to posix 
-hobo$DateTime<-format(as.POSIXct(hobo$DateTime,format='%m/%d/%y %I:%M:%S %p'),format="%m/%d/%y %H:%M:%S")
-hobo$DateTime<-as.POSIXct(hobo$DateTime,format="%m/%d/%y %H:%M:%S")
+hobo$DateTime<-format(as.POSIXct(hobo$DateTime,format='%m/%d/%y %I:%M:%S %p'),format="%m/%d/%y %H:%M:%S", tz="Pacific/Tahiti")
+hobo$DateTime<-as.POSIXct(hobo$DateTime,format="%m/%d/%y %H:%M:%S", tz="Pacific/Tahiti")
 ```
 
 Read in Odyssey light logger.  
@@ -66,7 +70,7 @@ colnames(light)<-c("number", "Date", "Time", "Raw.PAR", "Calibrated.PAR")
 
 light <- light %>%
   mutate(DateTime = paste(Date, Time))%>%
-  mutate(DateTime = as.POSIXct(DateTime,format="%d/%m/%Y %H:%M:%S"))%>%
+  mutate(DateTime = as.POSIXct(DateTime, format="%d/%m/%Y %H:%M:%S", tz="Pacific/Tahiti"))%>%
   select(DateTime, Calibrated.PAR)%>%
   rename(Light.PAR=Calibrated.PAR)%>%
   mutate(logger="15643")
@@ -99,21 +103,36 @@ light<-light%>%
   spread(value=Light.PAR, key=logger)
 ```
 
-
-Something gets messed up here - check tz in all data frames to make sure they are the same upon merging 
-
-
+Confirm time zones are the same.  
 
 ```{r}
-cal_light<-left_join(pendants_light, light)
+attr(light$DateTime,"tzone")
+attr(hobo$DateTime,"tzone")
+attr(pendants$DateTime,"tzone")
+```
 
+Merge data frames.  
 
+```{r}
+cal_light<-inner_join(pendants_light, light)
 cal_temp<-inner_join(hobo, pendants_temp)
 ```
 
+Remove time periods when the loggers were being read out or launched.  
+```{r}
+cal_light <- cal_light %>% 
+  filter(DateTime > '2022-09-23 17:20:00')%>%
+  filter(DateTime < '2022-09-25 11:00:00')
+
+cal_temp <- cal_temp %>% 
+  filter(DateTime > '2022-09-23 17:20:00')%>%
+  filter(DateTime < '2022-09-25 11:00:00')
+```
+
+
 # Temperature calibrations 
 
-Plot temperature logging over time for each logger and color by black loggers and pendants.  
+## 1. Plot temperature logging over time for each logger and color by black loggers and pendants.  
 
 ```{r}
 temp_plot<-cal_temp%>%
@@ -125,7 +144,49 @@ temp_plot<-cal_temp%>%
 
 ```
 
-Something is off about the time stamps for a few loggers. Look into this. 
+## 2. Calculate mean hobo loggers, this will be our standard temperature that we will calibrate all else to.    
+
+Calculate mean hobo temperature values.  
+```{r}
+cal_temp<-cal_temp%>%
+  mutate(mean_hobo=rowMeans(across(hobo_list)))
+```
+
+## 3. Calculate correlation curves for all loggers  
+
+Run models for each logger against the standard.  
+```{r}
+df_temp_cor<-cal_temp%>%
+  select(!DateTime)
+
+temp_output<-purrr::map(
+
+  # set the elements to iterate over.
+  # in this case all variables except 
+  # the first (mpg)
+  df_temp_cor[,-23],
+
+  # The second argument is the body of the loop. 
+  # An lm call with the formula as follow.
+  # here the .x is replace by a new variable 
+  # in each iteration
+  ~lm(mean_hobo ~ .x, data = df_temp_cor)
+  ) %>%
+
+
+  # Then summarise each output with broom::glance
+  purrr::map(broom::glance) %>%
+
+  # bind all summary
+  dplyr::bind_rows(.id = "variable") %>%
+
+  # selecting the variables of interest
+  dplyr::select(variable, r.squared)
+
+temp_output
+```
+
+This table shows that r squared fit of each logger to the mean Hobo logger temperatures are 0.89-0.99. 
 
 
 
@@ -133,19 +194,19 @@ Something is off about the time stamps for a few loggers. Look into this.
 
 
 
-The time stamp for loggers 
 
 
-Calculate mean hobo loogers, this will be our standard temperature.  
+## 4. Output to a data frame to use in future analysis with these loggers.  
 
-Calculate the correlation curve at each observation from the mean hobo loggers for each individual logger.  
 
-Output to a data frame to use in future analysis with these loggers.  
+
+
+
 
 
 # Light calibrations  
 
-Plot temperature logging over time for each logger and color by odyssey and pendants.  
+## 1. Plot temperature logging over time for each logger and color by odyssey and pendants.  
 ```{r}
 light_plot<-cal_light%>%
   #select(DateTime, `15643`)%>%
@@ -154,10 +215,25 @@ light_plot<-cal_light%>%
   ggplot(aes(x=DateTime, y=light, colour=logger))+
   geom_line()+
   theme_classic(); light_plot
-
 ```
 
-Is the time stamp off for the odyssey logger???? Nee to calculate the offset issue that we are having and re run all scripts from data upload 
+## 2. Calculate the correlation of each logger to the mean hobo loggers for each individual logger. 
+
+```{r}
+df_light_cor<-cal_light%>%
+  select(!DateTime)
+
+light_cor <- cor(df_light_cor[ , colnames(df_light_cor) != "15643"], df_light_cor$`15643`, use = "na.or.complete")
+light_cor  
+```
+
+Correlation values to the Odyssey logger range from 0.88 to 0.95. Due to small scale variation in light values in the tank, these values are appropriate.  
+
+
+
+
+
+
 
 
 Calculate the correlation curve at each observation from the odyssey loggers for each individual logger.  
