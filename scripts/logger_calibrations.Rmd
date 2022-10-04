@@ -24,6 +24,7 @@ library(stringr)
 library(readxl)
 library(purrr)
 library(lubridate)
+library(PerformanceAnalytics)
 ```
 
 # Read in files  
@@ -92,6 +93,7 @@ hobo<-hobo%>%
 
 #make two for pendants - one for light one for temp
 pendants_light<-pendants%>%
+  filter(Light.lux<40000)%>%
   select(!Temp.C.pendant)%>%
   spread(value=Light.lux, key=logger)
 
@@ -174,35 +176,51 @@ temp_output<-purrr::map(
   ) %>%
 
 
-  # Then summarise each output with broom::glance
-  purrr::map(broom::glance) %>%
+   # Then summarise each output with broom
+  purrr::map(broom::tidy) %>%
 
   # bind all summary
   dplyr::bind_rows(.id = "variable") %>%
 
   # selecting the variables of interest
-  dplyr::select(variable, r.squared)
+  dplyr::select(variable, term, estimate) %>%
+
+  #Generate columns for intercept and coef for each logger  
+  tidyr::spread(value="estimate",key="term")%>%
+  rename(coef=".x")%>%
+  rename(intercept=`(Intercept)`)%>%
+  rename(logger="variable")
 
 temp_output
 ```
 
-This table shows that r squared fit of each logger to the mean Hobo logger temperatures are 0.89-0.99. 
+View the results.  
+```{r}
+temp_output
+```
+
+Output to a data frame to use in future analysis with these loggers with the serial number, the coef, and the intercept.    
+```{r}
+write_csv(temp_output, "output/environmental/temperature_logger_calibrations.csv")
+```
+
+View plots of each logger to the mean Hobo logger.    
+
+```{r}
+df_temp_cor %>%
+  gather(-mean_hobo, key = "var", value = "value") %>% 
+  ggplot(aes(x = value, y = mean_hobo)) +
+    facet_wrap(~ var, scales = "free") +
+    geom_point() +
+    ylab("Hobo Mean Logger C")+
+    xlab("Pendant Logger C")+
+    stat_smooth(method="lm")
+```
 
 
+The formula for calculating calibrations will be:  
 
-
-
-
-
-
-
-## 4. Output to a data frame to use in future analysis with these loggers.  
-
-
-
-
-
-
+(Logger value in C * coef) + intercept = calibrated value in C
 
 # Light calibrations  
 
@@ -217,17 +235,71 @@ light_plot<-cal_light%>%
   theme_classic(); light_plot
 ```
 
-## 2. Calculate the correlation of each logger to the mean hobo loggers for each individual logger. 
+## 2. Calculate correlation curves for all loggers  
 
+Run models for each logger against the standard.  
 ```{r}
 df_light_cor<-cal_light%>%
   select(!DateTime)
 
-light_cor <- cor(df_light_cor[ , colnames(df_light_cor) != "15643"], df_light_cor$`15643`, use = "na.or.complete")
-light_cor  
+light_output<-purrr::map(
+
+  # set the elements to iterate over.
+  # in this case all variables except 
+  # the first (mpg)
+  df_light_cor[,-19],
+
+  # The second argument is the body of the loop. 
+  # An lm call with the formula as follow.
+  # here the .x is replace by a new variable 
+  # in each iteration
+  ~lm(`15643` ~ .x, data = df_light_cor)
+  ) %>%
+
+  # Then summarise each output with broom::tidy
+  purrr::map(broom::tidy) %>%
+
+  # bind all summary
+  dplyr::bind_rows(.id = "variable") %>%
+
+  # selecting the variables of interest
+  dplyr::select(variable, term, estimate) %>%
+
+  #Generate columns for intercept and coef for each logger  
+  tidyr::spread(value="estimate",key="term")%>%
+  rename(coef=".x")%>%
+  rename(intercept=`(Intercept)`)%>%
+  rename(logger="variable")
+
+light_output
 ```
 
-Correlation values to the Odyssey logger range from 0.88 to 0.95. Due to small scale variation in light values in the tank, these values are appropriate.  
+View the results.  
+```{r}
+light_output
+```
+
+Output to a data frame to use in future analysis with these loggers with the serial number, the coef, and the intercept.    
+```{r}
+write_csv(light_output, "output/environmental/light_logger_calibrations.csv")
+```
+
+View plots of each logger to the Odyssey logger.    
+
+```{r}
+df_light_cor %>%
+  gather(-`15643`, key = "var", value = "value") %>% 
+  ggplot(aes(x = value, y = `15643`)) +
+    facet_wrap(~ var, scales = "free") +
+    geom_point() +
+    ylab("Odyssey Logger PAR")+
+    xlab("Pendant Logger Lux")+
+    stat_smooth(method="lm")
+```
+
+The formula for calculating calibrations will be:  
+
+(Logger value in lux * coef) + intercept = calibrated value in PAR
 
 
 
@@ -236,6 +308,4 @@ Correlation values to the Odyssey logger range from 0.88 to 0.95. Due to small s
 
 
 
-Calculate the correlation curve at each observation from the odyssey loggers for each individual logger.  
 
-Output to a data frame to use in future analysis with these loggers.  
