@@ -1,5 +1,5 @@
 date,time,tank,temp.C,pH.mV,conductivity.psu,flow.mL.5s.initial,flow.mL.5s.final,par.center,par.q1,par.q2,par.q3,par.q4,notes
-20220929,1211,1,27.62,-56,37.97,350,325,407,401,386,362,407,"flow initial is before adjustment, final is after adjustment"
+20220929,1211,1,27.62,-56,37.97,350,325,407,401,386,362,407,
 20220929,1214,2,27.6,-56.6,38.01,450,425,465,434,413,420,421,
 20220929,1215,3,27.69,-5.7,38,275,300,484,460,360,443,426,
 20220929,1216,4,27.68,-56.9,38,325,325,468,451,456,344,332,
@@ -23,3 +23,9 @@ date,time,tank,temp.C,pH.mV,conductivity.psu,flow.mL.5s.initial,flow.mL.5s.final
 20221002,1214,4,27.67,-57.4,38.09,350,350,392,361,407,412,450,
 20221002,1216,5,27.68,-57.7,38.08,350,350,471,407,366,342,301,
 20221002,1218,6,27.67,-57.4,38.08,350,350,312,415,431,398,401,
+20221003,1445,1,27.56,-56.5,38.14,375,375,60,65,72,81,78,cloudy/rainy conditions during measurements; measurements taken after cleaning
+20221003,1447,2,27.65,-56.2,38.13,375,375,84,90,60,72,61,cloudy/rainy conditions during measurements; measurements taken after cleaning
+20221003,1449,3,27.65,-56.3,38.14,375,375,100,92,75,80,105,cloudy/rainy conditions during measurements; measurements taken after cleaning
+20221003,1450,4,27.64,-56.3,38.15,375,375,80,91,60,102,106,cloudy/rainy conditions during measurements; measurements taken after cleaning
+20221003,1451,5,27.62,-56.4,38.16,375,375,60,72,65,81,82,cloudy/rainy conditions during measurements; measurements taken after cleaning
+20221003,1452,6,27.63,-56.5,,375,375,72,109,60,94,71,cloudy/rainy conditions during measurements; measurements taken after cleaning
