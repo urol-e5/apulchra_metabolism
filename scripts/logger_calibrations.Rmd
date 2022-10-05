@@ -93,7 +93,7 @@ hobo<-hobo%>%
 
 #make two for pendants - one for light one for temp
 pendants_light<-pendants%>%
-  filter(Light.lux<40000)%>%
+  filter(Light.lux<40000)%>% #remove outlier points
   select(!Temp.C.pendant)%>%
   spread(value=Light.lux, key=logger)
 
