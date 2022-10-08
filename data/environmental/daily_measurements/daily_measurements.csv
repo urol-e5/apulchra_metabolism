@@ -47,3 +47,9 @@ date,time,tank,temp.C,pH.mV,conductivity.psu,flow.mL.5s.initial,flow.mL.5s.final
 20221006,1046,4,27.3,-56.3,38.1,275,325,540,496,481,497,491,
 20221006,1045,5,27.29,-56.4,38.08,325,325,457,379,401,430,410,
 20221006,1041,6,27.34,-56.2,38.07,300,350,497,467,472,446,455,
+20221007,1406,1,27.38,-55.9,38.16,400,375,146,124,87,142,160,cloudy conditions; noticed lower light in tanks farther away from the edge of the shade structure
+20221007,1407,2,27.38,-56.1,38.17,400,400,160,178,123,155,132,cloudy conditions; noticed lower light in tanks farther away from the edge of the shade structure
+20221007,1408,3,27.34,-55.5,38.19,350,350,170,180,144,160,133,cloudy conditions; noticed lower light in tanks farther away from the edge of the shade structure
+20221007,1409,4,27.34,-56.2,38.18,350,400,130,122,150,161,105,cloudy conditions; noticed lower light in tanks farther away from the edge of the shade structure
+20221007,1410,5,27.33,-56.1,38.19,400,375,113,101,196,175,112,cloudy conditions; noticed lower light in tanks farther away from the edge of the shade structure
+20221007,1411,6,27.38,-56.2,38.18,400,375,150,98,187,188,171,cloudy conditions; noticed lower light in tanks farther away from the edge of the shade structure
