@@ -29,6 +29,7 @@ library(lubridate)
 library(ggplot2)
 library(seacarb)
 library(broom)
+library(cowplot)
 ```
 
 # Loggers: Pendants in E5 tanks  
@@ -269,6 +270,10 @@ daily_temp<-daily_calc%>%
   
   ggplot(aes(x=date, y=temp.C, colour=tank))+
   geom_point()+
+  ylim(26.75,28)+
+  ylab("Temperature °C")+
+  xlab("Date")+
+  scale_fill_brewer(palette = "Dark2")+
   theme_classic(); daily_temp
   
 ```
@@ -279,6 +284,10 @@ daily_sal<-daily_calc%>%
   
   ggplot(aes(x=date, y=sal.psu, colour=tank))+
   geom_point()+
+  ylim(38,38.4)+
+  ylab("Salinity (psu)")+
+  xlab("Date")+
+  scale_fill_brewer(palette = "Dark2")+
   theme_classic(); daily_sal
   
 ```
@@ -289,21 +298,54 @@ daily_ph<-daily_calc%>%
   
   ggplot(aes(x=date, y=pH, colour=tank))+
   geom_point()+
+  ylim(8.03,8.12)+
+  ylab("Total pH")+
+  xlab("Date")+
+  scale_fill_brewer(palette = "Dark2")+
   theme_classic(); daily_ph
   
 ```
 
-Plot pH values.  
+Plot flow values.  
 ```{r}
 daily_flow<-daily_calc%>%
   
   ggplot(aes(x=date, y=flow.L.min, colour=tank))+
   geom_point()+
+  ylim(3,5.5)+
+  ylab("Flow (L per min)")+
+  xlab("Date")+
+  scale_fill_brewer(palette = "Dark2")+
   theme_classic(); daily_flow
-  
 ```
 
-# Test for differences between tanks  
+Plot light PAR values.  
+```{r}
+daily_par<-daily_calc%>%
+  
+  ggplot(aes(x=date, y=mean.par, colour=tank))+
+  geom_point()+
+  ylim(0,600)+
+  ylab("Light (PAR)")+
+  xlab("Date")+
+  scale_fill_brewer(palette = "Dark2")+
+  theme_classic(); daily_par
+```
+
+View a panel of all plots together.  
+```{r}
+daily_temp_l<-daily_temp+theme(legend.position="none")
+daily_ph_l<-daily_ph+theme(legend.position="none")
+daily_sal_l<-daily_sal+theme(legend.position="none")
+daily_par_l<-daily_par+theme(legend.position="none")
+daily_flow_l<-daily_flow+theme(legend.position="none")
+
+daily_plots<-plot_grid(daily_temp_l, daily_ph_l, daily_sal_l, daily_par_l, daily_flow, nrow=1, ncol=5)  
+
+ggsave(filename="figures/environmental/daily_measurements.png", plot=daily_plots, dpi=300, width=24, height=5, units="in")
+```
+
+## Test for differences between tanks  
 
 Test for differences in temperature between tanks.  
 ```{r}
