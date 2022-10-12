@@ -1,0 +1,331 @@
+---
+title: "Analyzing logger data"
+author: "Ariana S Huffmyer"
+date: "10/10/2022"
+output: 
+  html_document:
+    code_folding: hide
+    toc: yes
+    toc_depth: 6
+    toc_float: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+This script reads and plots logger environmental data from Hobo pendant loggers in the E5 *A. pulchra* metabolism experiment.  
+
+# Set Up    
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(stringr)
+library(readxl)
+library(purrr)
+library(lubridate)
+library(ggplot2)
+library(seacarb)
+library(broom)
+```
+
+# Loggers: Pendants in E5 tanks  
+
+## Read in files  
+
+Read in Hobo Pendant files  
+```{r}
+pendant.files <- list.files(path="data/environmental/loggers/E5_tanks", pattern="*.xlsx", full.names=TRUE)
+
+pendants <- setNames(pendant.files, pendant.files) %>%
+   map_dfr(read_excel, .id = "logger") %>%
+   rename(DateTime=`Date-Time (French Polynesia Standard Time)`, temp.C=`Ch: 1 - Temperature   (°C )`, light.lux=`Ch: 2 - Light   (lux)`)%>%
+  select(!`#`)%>%
+  mutate(logger=sub(".*/", "", logger))%>% #remove the path name
+  mutate(logger=sub("_.*", "", logger)) #keep only the serial number 
+
+#adjust time to correct values and force time zone
+pendants$DateTime <- force_tz(pendants$DateTime, tzone = "Pacific/Tahiti")
+```
+
+## Read in treatment information  
+
+Read in metadata that assigns a pendant serial number to a tank number and/or treatment.  
+```{r}
+metadata<-read_csv("data/environmental/loggers/E5_tanks/logger_metadata.csv")
+metadata$logger<-as.character(metadata$logger)
+```
+
+Assign treatment information to logger data.  
+```{r}
+pendants<-left_join(pendants, metadata, by="logger")
+pendants$tank<-as.factor(pendants$tank)
+```
+
+## Apply tempreature calibrations  
+
+Read in calibration output file with the intercept and coefficients for calibration.  
+```{r}
+temp_cal<-read_csv("output/environmental/temperature_logger_calibrations.csv")
+temp_cal$logger<-as.character(temp_cal$logger)
+```
+
+Generate a calibrated temperature column in our logger dataframe.  
+```{r}
+pendants<-left_join(pendants, temp_cal, by="logger")
+
+pendants<-pendants%>%
+  mutate(temp.calibrated=temp.C*coef+intercept)%>%
+  select(!coef)%>%
+  select(!intercept)
+```
+
+## Apply light calibrations  
+
+Read in calibration output file with the intercept and coefficients for calibration.  
+```{r}
+light_cal<-read_csv("output/environmental/light_logger_calibrations.csv")
+light_cal$logger<-as.character(light_cal$logger)
+```
+
+Generate a calibrated light column in our logger dataframe.  
+```{r}
+pendants<-left_join(pendants, light_cal, by="logger")
+
+pendants<-pendants%>%
+  mutate(PAR.calibrated=light.lux*coef+intercept)%>%
+  select(!coef)%>%
+  select(!intercept)
+```
+
+## Plot temperature    
+
+Plot over time by tank  
+```{r}
+temp_plot<-pendants%>%
+  filter(DateTime > '2022-09-26 11:20:00')%>% 
+  
+  ggplot(aes(x=DateTime, y=temp.calibrated, colour=tank))+
+  geom_line()+
+  theme_classic(); temp_plot
+```
+
+Oct 10, 2022: Tanks 1, 2, and 3 have been experiencing a spike in temperature in the morning hours. This is due to the way the sun hits the tanks in the morning from the side. We can move the experiment to a different water table section. This was completed on 10/11/2022.  
+
+## Plot light     
+
+Plot over time by tank  
+```{r}
+light_plot<-pendants%>%
+  ggplot(aes(x=DateTime, y=PAR.calibrated, colour=tank))+
+  geom_line()+
+  theme_classic(); light_plot
+```
+
+Plot by lux (non calibrated)  
+```{r}
+light_plot<-pendants%>%
+  ggplot(aes(x=DateTime, y=light.lux, colour=tank))+
+  geom_line()+
+  theme_classic(); light_plot
+```
+
+Oct 10, 2022: Tanks 1, 2, and 3 have been experiencing a spike in light in the morning hours. This is due to the way the sun hits the tanks in the morning from the side. We can move the experiment to a different water table section. This was completed on 10/11/2022.    
+Oct 10, 2022: We need to revisit the light logger calibration. PAR values are higher than expected from the daily measurements.  
+
+# Loggers: Hobo black loggers in parent tanks  
+
+## Read in files  
+
+Read in Hobo black logger files  
+```{r}
+hobo.files <- list.files(path="data/environmental/loggers/parents", pattern="*.csv", full.names=TRUE)
+
+hobo <- setNames(hobo.files, hobo.files) %>%
+   map_dfr(read_csv, .id = "logger", skip=1)%>%
+   mutate(logger=sub(".*/", "", logger))%>% #remove the path name
+   mutate(logger=sub("_.*", "", logger))%>% #keep only the serial number
+   select(!'#')%>%
+   select(logger, `Date Time, GMT-10:00`, starts_with("Temp"))%>%
+   rename(DateTime=`Date Time, GMT-10:00`, Temp1=`Temp, °C (LGR S/N: 20444033, SEN S/N: 20444033, LBL: C)`, Temp2=`Temp, °C (LGR S/N: 20444040, SEN S/N: 20444040)`, Temp3=`Temp, °C (LGR S/N: 20719656, SEN S/N: 20719656, LBL: C)`, Temp4=`Temp, °C (LGR S/N: 20946644, SEN S/N: 20946644)`)%>%
+   mutate(temp.C = coalesce(Temp1, Temp2, Temp3, Temp4))%>%
+  select(logger, DateTime, temp.C)
+
+#adjust time to correct values and force time zone
+hobo$DateTime<-format(as.POSIXct(hobo$DateTime,format='%m/%d/%y %I:%M:%S %p'),format="%m/%d/%y %H:%M:%S", tz="Pacific/Tahiti")
+hobo$DateTime<-as.POSIXct(hobo$DateTime,format="%m/%d/%y %H:%M:%S", tz="Pacific/Tahiti")
+hobo$DateTime <- force_tz(hobo$DateTime, tzone = "Pacific/Tahiti")
+```
+
+## Read in treatment information  
+
+Read in metadata that assigns a pendant serial number to a tank number and/or treatment.  
+```{r}
+metadata_parent<-read_csv("data/environmental/loggers/parents/logger_metadata_parents.csv")
+metadata_parent$logger<-as.character(metadata_parent$logger)
+```
+
+Assign treatment information to logger data.  
+```{r}
+hobo<-left_join(hobo, metadata_parent, by="logger")
+```
+
+## Apply tempreature calibrations  
+
+Read in calibration output file with the intercept and coefficients for calibration.  
+```{r}
+temp_cal<-read_csv("output/environmental/temperature_logger_calibrations.csv")
+temp_cal$logger<-as.character(temp_cal$logger)
+```
+
+Generate a calibrated temperature column in our logger dataframe.  
+```{r}
+hobo<-left_join(hobo, temp_cal, by="logger")
+
+hobo<-hobo%>%
+  mutate(temp.calibrated=temp.C*coef+intercept)%>%
+  select(!coef)%>%
+  select(!intercept)
+```
+
+## Plot temperature    
+
+Plot over time by tank  
+```{r}
+temp_plot_parents<-hobo%>%
+  filter(DateTime < '2022-10-02 11:20:00')%>%
+  mutate(temp.calibrated = replace(temp.calibrated, temp.calibrated<25.5, NA))%>%
+  
+  ggplot(aes(x=DateTime, y=temp.calibrated, colour=tank))+
+  geom_line()+
+  theme_classic(); temp_plot_parents
+```
+
+# Daily measurements  
+
+## Read in file  
+
+Read in daily measurements file.  
+
+```{r}
+daily<-read_csv("data/environmental/daily_measurements/daily_measurements.csv")
+daily$date<-as.Date(daily$date, format="%m/%d/%y")
+daily$tank<-as.factor(daily$tank)
+daily$tris.date<-as.character(daily$tris.date)
+```
+
+## Calculate pH  
+
+Calculate the calibration curve from the Tris calibration and calculate pH on the total scale from pH.mV.   
+```{r}
+pHcalib<-read_csv("data/environmental/20220924_Tris_Calibration.csv")
+pHcalib$tris.date<-as.character(pHcalib$tris.date)
+
+pHSlope<-pHcalib %>%
+  nest_by(tris.date)%>%
+  mutate(fitpH = list(lm(mVTris~TTris, data = data))) %>% # linear regression of mV and temp of the tris
+  summarise(broom::tidy(fitpH)) %>% # make the output tidy
+  select(tris.date, term, estimate) %>%
+  pivot_wider(names_from = term, values_from = estimate)%>%# put slope and intercept in their own column
+  left_join(daily, ., by="tris.date") %>% # join with the pH sample data
+  mutate(mVTris = temp.C*TTris + `(Intercept)`) %>%# calculate the mV of the tris at temperature in which the pH of the tanks were measured
+  drop_na() %>%
+  mutate(pH = pH(Ex=pH.mV,Etris=mVTris,S=sal.psu,T=temp.C)) # calculate pH of the tanks using the pH seacarb function
+
+```
+
+pH is now calculated as Total pH in the "pH" column. Now select the desired columns to analyze further.  
+
+```{r}
+daily_calc<-pHSlope%>%
+  select(date, time, tank, temp.C, pH, sal.psu, flow.mL.5s.final, par.center, par.q1, par.q2, par.q3, par.q4)
+```
+
+## Calculate flow  
+
+Calculate flow to total mL per minute rather than 5 sec.  
+```{r}
+daily_calc<-daily_calc%>%
+  mutate(flow.L.min=(flow.mL.5s.final*12)/1000)%>%
+  select(!flow.mL.5s.final)
+```
+
+## Calculate mean light value 
+
+Calculate the mean light value (PAR) as an average of all light measurements in the 5 positions in each tank at each measurement.  
+```{r}
+daily_calc<-daily_calc%>%
+  mutate(mean.par=rowMeans(across(starts_with("par"))))%>%
+  select(date, time, tank, temp.C, pH, sal.psu, flow.L.min, mean.par)
+```
+
+## Plot metrics of interest  
+
+Plot temperature values.  
+```{r}
+daily_temp<-daily_calc%>%
+  
+  ggplot(aes(x=date, y=temp.C, colour=tank))+
+  geom_point()+
+  theme_classic(); daily_temp
+  
+```
+
+Plot salinity values.  
+```{r}
+daily_sal<-daily_calc%>%
+  
+  ggplot(aes(x=date, y=sal.psu, colour=tank))+
+  geom_point()+
+  theme_classic(); daily_sal
+  
+```
+
+Plot pH values.  
+```{r}
+daily_ph<-daily_calc%>%
+  
+  ggplot(aes(x=date, y=pH, colour=tank))+
+  geom_point()+
+  theme_classic(); daily_ph
+  
+```
+
+Plot pH values.  
+```{r}
+daily_flow<-daily_calc%>%
+  
+  ggplot(aes(x=date, y=flow.L.min, colour=tank))+
+  geom_point()+
+  theme_classic(); daily_flow
+  
+```
+
+# Test for differences between tanks  
+
+Test for differences in temperature between tanks.  
+```{r}
+summary(aov(temp.C~tank, data=daily_calc))
+```
+
+Test for differences in pH between tanks.  
+```{r}
+summary(aov(pH~tank, data=daily_calc))
+```
+
+Test for differences in salinity between tanks.  
+```{r}
+summary(aov(sal.psu~tank, data=daily_calc))
+```
+
+Test for differences in flow between tanks.  
+```{r}
+summary(aov(flow.L.min~tank, data=daily_calc))
+```
+
+Test for differences in light between tanks.  
+```{r}
+summary(aov(mean.par~tank, data=daily_calc))
+```
