@@ -1,0 +1,103 @@
+---
+title: Surface area - wax dipping method
+author: "AS Huffmyer"
+date: '2022'
+output:
+  html_document:
+    code_folding: hide
+    toc: yes
+    toc_depth: 6
+    toc_float: yes
+  pdf_document:
+    keep_tex: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+This script analyzes surface area calculated by the wax dipping methods. Scripts based on Danielle Becker-Polinski's scripts.  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+
+## install packages if you dont already have them
+if (!require("tidyverse")) install.packages("tidyverse")
+
+# load packages
+library(tidyverse)
+```
+
+# Calculate standards 
+
+Calculate standard curve from wooden dowels.  
+```{r}
+#load wax data
+wax.data <- read.csv("data/baseline_sampling/surface_area.csv", header=TRUE)
+
+wax.data$delta.mass.g <- wax.data$wax.weight.g-wax.data$dry.weight.g
+stnds <- subset(wax.data, sample=="Standard")
+
+#calculate the surface area of the spherical standards from the diameter
+stnds$rad <- stnds$diameter/2
+stnds$surface.area.cm2 <- 4*pi*(stnds$rad)^2
+
+# calculate the curve coefficients for slope and intercept to apply as the standard
+stnd.curve <- lm(surface.area.cm2~delta.mass.g, data=stnds)
+stnd.plot<-plot(surface.area.cm2~delta.mass.g, data=stnds);stnd.plot
+stnd.curve$coefficients
+summary(stnd.curve)$r.squared #r-squared = 0.979 20221014
+```
+
+Plot the curve.  
+```{r}
+standard.plot <- ggplot(data = stnds, aes(x=delta.mass.g, y=surface.area.cm2))+
+  ylab("Surface area (cm2)")+ xlab("Delta mass (g)") + 
+  geom_point()+
+  geom_smooth(method = "lm") +
+  stat_regline_equation(label.y = 15.0, label.x = 3, aes(label = ..eq.label..)) +
+  stat_regline_equation(label.y = 5.0, label.x = 3, aes(label = ..rr.label..)) +
+  theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+                     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1));standard.plot
+```
+
+# Calculate surface area using the standard curve  
+```{r}
+#Calculate surface area using the standard curve
+smpls <- subset(wax.data, sample=="sample")
+smpls$surface.area.cm2 <- stnd.curve$coefficients[2] * smpls$delta.mass.g + stnd.curve$coefficients[1]
+
+#select the samples only
+smpls <- smpls %>%
+  select(-sample, -diameter)
+
+smpls %>%
+  count(fragment) %>% arrange(n)
+
+#check the range to make sure your samples fall within the range of the standards
+range(smpls$surface.area.cm2)
+range(stnds$surface.area.cm2)
+#yes these fall within the range 
+```
+
+# Plot samples on the standard curve.  
+```{r}
+# Plot standard curve
+std_curve_plot <- stnds %>%
+  ggplot(aes(x = delta.mass.g, y = surface.area.cm2)) +
+  geom_point(color = "red", size = 3) 
+
+std_curve_plot + 
+  geom_point(data = smpls, aes(x = delta.mass.g, y = surface.area.cm2), pch = "X", cex = 5, alpha = 0.3) +
+  labs(title = "All samples projected on standard curve")
+```
+
+All samples are within the standard curve.  
+
+# Save output for normalization for physiology analysis.  
+
+```{r}
+#Save the output for use in normilzation for phys assays
+smpls%>%
+  mutate(timepoint="baseline")%>%
+  select(fragment, surface.area.cm2, timepoint)%>%
+    write_csv("output/baseline/surface_area_calc.csv")
+```

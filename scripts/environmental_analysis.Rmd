@@ -232,7 +232,6 @@ pHSlope<-pHcalib %>%
   pivot_wider(names_from = term, values_from = estimate)%>%# put slope and intercept in their own column
   left_join(daily, ., by="tris.date") %>% # join with the pH sample data
   mutate(mVTris = temp.C*TTris + `(Intercept)`) %>%# calculate the mV of the tris at temperature in which the pH of the tanks were measured
-  #drop_na() %>%
   mutate(pH = pH(Ex=pH.mV,Etris=mVTris,S=sal.psu,T=temp.C)) # calculate pH of the tanks using the pH seacarb function
 
 ```
@@ -270,7 +269,7 @@ daily_temp<-daily_calc%>%
   
   ggplot(aes(x=date, y=temp.C, colour=tank))+
   geom_point()+
-  ylim(26.75,28)+
+  #ylim(26.75,28)+
   ylab("Temperature °C")+
   xlab("Date")+
   scale_fill_brewer(palette = "Dark2")+
@@ -312,7 +311,7 @@ daily_flow<-daily_calc%>%
   
   ggplot(aes(x=date, y=flow.L.min, colour=tank))+
   geom_point()+
-  ylim(3,5.5)+
+  ylim(2,5.5)+
   ylab("Flow (L per min)")+
   xlab("Date")+
   scale_fill_brewer(palette = "Dark2")+
