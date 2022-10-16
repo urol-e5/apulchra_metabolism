@@ -121,21 +121,22 @@ Plot over time by tank
 ```{r}
 light_plot<-pendants%>%
   ggplot(aes(x=DateTime, y=PAR.calibrated, colour=tank))+
+  ylab("Integrated PAR")+
   geom_line()+
   theme_classic(); light_plot
 ```
 
 Plot by lux (non calibrated)  
 ```{r}
-light_plot<-pendants%>%
+lux_plot<-pendants%>%
   ggplot(aes(x=DateTime, y=light.lux, colour=tank))+
+  ylab("Light Lux")+
   geom_line()+
-  theme_classic(); light_plot
+  theme_classic(); lux_plot
 ```
 
 Oct 10, 2022: Tanks 1, 2, and 3 have been experiencing a spike in light in the morning hours. This is due to the way the sun hits the tanks in the morning from the side. We can move the experiment to a different water table section. This was completed on 10/11/2022.    
 Oct 10, 2022: We need to revisit the light logger calibration. PAR values are higher than expected from the daily measurements.  
-
 # Loggers: Hobo black loggers in parent tanks  
 
 ## Read in files  
@@ -202,6 +203,23 @@ temp_plot_parents<-hobo%>%
   ggplot(aes(x=DateTime, y=temp.calibrated, colour=tank))+
   geom_line()+
   theme_classic(); temp_plot_parents
+```
+
+# Generate figure of all logger data  
+
+temp_plot
+light_plot
+lux_plot
+temp_plot_parents
+
+```{r}
+temp_plot_l<-temp_plot+theme(legend.position="none")
+light_plot_l<-light_plot+theme(legend.position="none")
+
+logger_plots<-plot_grid(temp_plot, light_plot, lux_plot, temp_plot_parents, nrow=4, ncol=1)  
+
+ggsave(filename="figures/environmental/loggers.png", plot=logger_plots, dpi=300, width=9, height=20, units="in")
+
 ```
 
 # Daily measurements  

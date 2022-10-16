@@ -235,6 +235,17 @@ light_plot<-cal_light%>%
   theme_classic(); light_plot
 ```
 
+Plot only the Odyssey logger.  
+```{r}
+odyssey_plot<-cal_light%>%
+  gather(value=light, key=logger, -DateTime)%>%
+  filter(logger=="15643")%>%
+  
+  ggplot(aes(x=DateTime, y=light, colour=logger))+
+  geom_line()+
+  theme_classic(); odyssey_plot
+```
+
 ## 2. Calculate correlation curves for all loggers  
 
 Run models for each logger against the standard.  
@@ -292,14 +303,14 @@ df_light_cor %>%
   ggplot(aes(x = value, y = `15643`)) +
     facet_wrap(~ var, scales = "free") +
     geom_point() +
-    ylab("Odyssey Logger PAR")+
+    ylab("Odyssey Logger Integrated PAR")+
     xlab("Pendant Logger Lux")+
     stat_smooth(method="lm")
 ```
 
 The formula for calculating calibrations will be:  
 
-(Logger value in lux * coef) + intercept = calibrated value in PAR
+(Logger value in lux * coef) + intercept = calibrated value in integrated PAR
 
 
 
