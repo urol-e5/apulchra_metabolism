@@ -1,0 +1,106 @@
+---
+title: Protein analysis
+author: "AS Huffmyer"
+date: '2022'
+output:
+  html_document:
+    code_folding: hide
+    toc: yes
+    toc_depth: 6
+    toc_float: yes
+  pdf_document:
+    keep_tex: yes
+editor_options: 
+  chunk_output_type: console
+---
+This script analyzes and plots data for symbiont cell density for the E5 *A. pulchra* metabolism 2022 project. Scripts based on E5 timeseries analysis scripts. 
+
+```{r setup, include = FALSE}
+## install packages if you dont already have them
+if (!require("tidyverse")) install.packages("tidyverse")
+if (!require("readxl")) install.packages("readxl")
+# load packages
+library(tidyverse)
+library(readxl)
+library(lme4)
+library(lmerTest)
+```
+
+# Import data
+```{r}
+# Cell count data
+sym_counts <- read_excel("data/baseline_sampling/sym_counts.xlsx")
+
+# Surface area data
+sa <- read.csv("output/baseline/surface_area_calc.csv")
+
+# Tissue homogenate volume data
+homog_vols <- read_csv("data/baseline_sampling/homog_vols.csv") %>% select(1:2)
+
+# Coral sample metadata
+metadata <- read_csv("data/fragments.csv") %>% select(1:4) %>% filter(treatment=="Baseline")
+
+# Join homogenate volumes and surface area with sample metadata
+metadata <- full_join(metadata, homog_vols) %>%
+  full_join(sa)
+```
+
+# Calculate cells per square centimeter
+```{r}
+# Calculate mean counts for each sample
+sym_counts <- sym_counts %>%
+  select(fragment, squares.counted, matches("Count[0-6]")) %>%
+  gather("rep", "count", -fragment, -squares.counted) %>%
+  group_by(fragment, squares.counted) %>%
+  summarise(mean_count = mean(count, na.rm = TRUE))
+
+# Join mean counts with sample metadata
+sym_counts <- full_join(sym_counts, metadata)
+
+# Normalize counts by homogenat volume and surface area
+sym_counts <- sym_counts %>%
+  mutate(cells.mL = mean_count * 10000 / squares.counted,
+         cells = cells.mL * homog.vol.mL,
+         cells.cm2 = cells / surface.area.cm2)
+```
+
+Output file.  
+
+```{r}
+sym_counts %>%
+  select(fragment, colony, tank, treatment, cells.cm2) %>%
+  mutate(timepoint="baseline")%>% 
+  write_csv("output/baseline/sym_densities_calc.csv")
+```
+
+# Plot data by colony 
+
+Plot by colony  
+```{r}
+# Plot all data points with mean ± se
+sym_plot<-sym_counts %>%
+  
+  ggplot(aes(x = colony, y = cells.cm2, color = colony)) +
+  #coord_cartesian(ylim = c(0, 1.0))+
+  labs(x = "", y = "Symbiont Cells per cm2") +
+  geom_boxplot()+
+  #ylim(200,1000)+
+  geom_point(pch = 21, position = position_jitterdodge(0.1))+
+  theme_classic(); sym_plot # Plot all points
+
+ggsave(sym_plot, file="figures/baseline/symbiont_density.png", width=6, height=6)
+```
+
+These values match the expected range for Acropora from the E5 Timeseries project (~1e+06).  
+
+# Statistical tests  
+
+Analyze by differences in colony using a mixed effect model with tank as a random effect.  
+
+```{r}
+model_sym<-sym_counts%>%
+  
+  lmer(cells.cm2~colony+(1|tank), data=.)
+
+anova(model_sym)
+```
