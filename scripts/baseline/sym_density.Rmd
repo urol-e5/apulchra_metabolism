@@ -104,3 +104,6 @@ model_sym<-sym_counts%>%
 
 anova(model_sym)
 ```
+
+
+
