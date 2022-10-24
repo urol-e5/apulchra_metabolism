@@ -137,6 +137,110 @@ lux_plot<-pendants%>%
 
 Oct 10, 2022: Tanks 1, 2, and 3 have been experiencing a spike in light in the morning hours. This is due to the way the sun hits the tanks in the morning from the side. We can move the experiment to a different water table section. This was completed on 10/11/2022.    
 Oct 10, 2022: We need to revisit the light logger calibration. PAR values are higher than expected from the daily measurements.  
+# Loggers: Pendants in larval tanks    
+
+## Read in files  
+
+Read in Hobo Pendant files  
+```{r}
+pendant.files.larvae <- list.files(path="data/environmental/loggers/larvae", pattern="*.xlsx", full.names=TRUE)
+
+pendants.larvae <- setNames(pendant.files.larvae, pendant.files.larvae) %>%
+   map_dfr(read_excel, .id = "logger") %>%
+   rename(DateTime=`Date-Time (French Polynesia Standard Time)`, temp.C=`Ch: 1 - Temperature   (°C )`, light.lux=`Ch: 2 - Light   (lux)`)%>%
+  select(!`#`)%>%
+  mutate(logger=sub(".*/", "", logger))%>% #remove the path name
+  mutate(logger=sub("_.*", "", logger)) #keep only the serial number 
+
+#adjust time to correct values and force time zone
+pendants.larvae$DateTime <- force_tz(pendants.larvae$DateTime, tzone = "Pacific/Tahiti")
+```
+
+## Read in treatment information  
+
+Read in metadata that assigns a pendant serial number to a tank number and/or treatment.  
+```{r}
+metadata_larvae<-read_csv("data/environmental/loggers/larvae/logger_metadata_larvae.csv")
+metadata_larvae$logger<-as.character(metadata_larvae$logger)
+```
+
+Assign treatment information to logger data.  
+```{r}
+pendants.larvae<-left_join(pendants.larvae, metadata_larvae, by="logger")
+pendants.larvae$tank<-as.factor(pendants.larvae$tank)
+```
+
+## Apply tempreature calibrations  
+
+Read in calibration output file with the intercept and coefficients for calibration.  
+```{r}
+temp_cal<-read_csv("output/environmental/temperature_logger_calibrations.csv")
+temp_cal$logger<-as.character(temp_cal$logger)
+```
+
+Generate a calibrated temperature column in our logger dataframe.  
+```{r}
+pendants.larvae<-left_join(pendants.larvae, temp_cal, by="logger")
+
+pendants.larvae<-pendants.larvae%>%
+  mutate(temp.calibrated=temp.C*coef+intercept)%>%
+  select(!coef)%>%
+  select(!intercept)
+```
+
+## Apply light calibrations  
+
+Read in calibration output file with the intercept and coefficients for calibration.  
+```{r}
+light_cal<-read_csv("output/environmental/light_logger_calibrations.csv")
+light_cal$logger<-as.character(light_cal$logger)
+```
+
+Generate a calibrated light column in our logger dataframe.  
+```{r}
+pendants.larvae<-left_join(pendants.larvae, light_cal, by="logger")
+
+pendants.larvae<-pendants.larvae%>%
+  mutate(PAR.calibrated=light.lux*coef+intercept)%>%
+  select(!coef)%>%
+  select(!intercept)
+```
+
+## Plot temperature    
+
+Plot over time by tank  
+```{r}
+temp_plot_larvae<-pendants.larvae%>%
+  
+  ggplot(aes(x=DateTime, y=temp.calibrated, colour=tank))+
+  geom_line()+
+  theme_classic(); temp_plot_larvae
+```
+
+Oct 10, 2022: Tanks 1, 2, and 3 have been experiencing a spike in temperature in the morning hours. This is due to the way the sun hits the tanks in the morning from the side. We can move the experiment to a different water table section. This was completed on 10/11/2022.  
+
+## Plot light     
+
+Plot over time by tank  
+```{r}
+light_plot_larvae<-pendants.larvae%>%
+  ggplot(aes(x=DateTime, y=PAR.calibrated, colour=tank))+
+  ylab("Integrated PAR")+
+  geom_line()+
+  theme_classic(); light_plot_larvae
+```
+
+Plot by lux (non calibrated)  
+```{r}
+lux_plot_larvae<-pendants.larvae%>%
+  ggplot(aes(x=DateTime, y=light.lux, colour=tank))+
+  ylab("Light Lux")+
+  geom_line()+
+  theme_classic(); lux_plot_larvae
+```
+
+
+
 # Loggers: Hobo black loggers in parent tanks  
 
 ## Read in files  
@@ -212,13 +316,17 @@ light_plot
 lux_plot
 temp_plot_parents
 
+temp_plot_larvae
+light_plot_larvae
+lux_plot_larvae
+
 ```{r}
 temp_plot_l<-temp_plot+theme(legend.position="none")
 light_plot_l<-light_plot+theme(legend.position="none")
 
-logger_plots<-plot_grid(temp_plot, light_plot, lux_plot, temp_plot_parents, nrow=4, ncol=1)  
+logger_plots<-plot_grid(temp_plot, light_plot, lux_plot, temp_plot_parents, temp_plot_larvae, light_plot_larvae, lux_plot_larvae, nrow=7, ncol=1)  
 
-ggsave(filename="figures/environmental/loggers.png", plot=logger_plots, dpi=300, width=9, height=20, units="in")
+ggsave(filename="figures/environmental/loggers.png", plot=logger_plots, dpi=300, width=9, height=30, units="in")
 
 ```
 
