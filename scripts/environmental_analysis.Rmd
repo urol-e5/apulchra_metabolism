@@ -301,7 +301,7 @@ hobo<-hobo%>%
 Plot over time by tank  
 ```{r}
 temp_plot_parents<-hobo%>%
-  filter(DateTime < '2022-10-02 11:20:00')%>%
+  #filter(DateTime < '2022-10-0 11:20:00')%>%
   mutate(temp.calibrated = replace(temp.calibrated, temp.calibrated<25.5, NA))%>%
   
   ggplot(aes(x=DateTime, y=temp.calibrated, colour=tank))+
