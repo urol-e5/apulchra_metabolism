@@ -409,6 +409,8 @@ daily_tanks<-daily_calc.long %>%
   scale_fill_brewer(palette = "Dark2")+
   theme_bw(); daily_tanks
   
+ggsave(filename="figures/environmental/tank_daily_measurements.png", plot=daily_tanks, dpi=300, width=8, height=10, units="in")
+
 ```
 
 Plot by treatment  
@@ -423,7 +425,7 @@ daily_plots<-daily_calc.long %>%
   scale_fill_brewer(palette = "Dark2")+
   theme_bw(); daily_plots
 
-ggsave(filename="figures/environmental/daily_measurements.png", plot=daily_plots, dpi=300, width=12, height=24, units="in")
+ggsave(filename="figures/environmental/daily_measurements.png", plot=daily_plots, dpi=300, width=8, height=10, units="in")
 ```
 
 Separate into Acclimation period and Exposure Period
