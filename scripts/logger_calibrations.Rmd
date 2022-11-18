@@ -27,6 +27,7 @@ library(lubridate)
 library(PerformanceAnalytics)
 ```
 
+
 # Read in files  
 
 Read in Hobo Pendant files  
@@ -39,6 +40,8 @@ pendants <- setNames(pendant.files, pendant.files) %>%
   select(!`#`)%>%
   mutate(logger=sub(".*/", "", logger))%>% #remove the path name
   mutate(logger=sub("_.*", "", logger)) #keep only the serial number 
+
+pendants$DateTime<-as.POSIXct(pendants$DateTime, format="%m/%d/%y %H:%M:%S", tz="Pacific/Tahiti")
 
 #adjust time to correct values and force time zone
 pendants$DateTime <- force_tz(pendants$DateTime, tzone = "Pacific/Tahiti")
@@ -59,7 +62,10 @@ hobo <- setNames(hobo.files, hobo.files) %>%
   select(logger, DateTime, Temp.C.hobo)
 
 #convert Date Time to posix 
-hobo$DateTime<-format(as.POSIXct(hobo$DateTime,format='%m/%d/%y %I:%M:%S %p'),format="%m/%d/%y %H:%M:%S", tz="Pacific/Tahiti")
+hobo$DateTime<-format(as.POSIXct(hobo$DateTime,format='%m/%d/%y %I:%M:%S %p'),format="%m/%d/%y %H:%M:%S")
+
+#hobo$DateTime<-format(as.POSIXct(hobo$DateTime,format='%m/%d/%y %I:%M:%S %p'),format="%m/%d/%y %H:%M:%S", tz="Pacific/Tahiti")
+
 hobo$DateTime<-as.POSIXct(hobo$DateTime,format="%m/%d/%y %H:%M:%S", tz="Pacific/Tahiti")
 ```
 
@@ -121,16 +127,16 @@ cal_temp<-inner_join(hobo, pendants_temp)
 ```
 
 Remove time periods when the loggers were being read out or launched.  
+
 ```{r}
 cal_light <- cal_light %>% 
-  filter(DateTime > '2022-09-23 17:20:00')%>%
-  filter(DateTime < '2022-09-25 11:00:00')
+  filter(DateTime > as.POSIXct("2022-09-23 17:20:00", tz="Pacific/Tahiti"))%>%
+  filter(DateTime < as.POSIXct("2022-09-25 11:00:00", tz="Pacific/Tahiti"))
 
 cal_temp <- cal_temp %>% 
-  filter(DateTime > '2022-09-23 17:20:00')%>%
-  filter(DateTime < '2022-09-25 11:00:00')
+  filter(DateTime > as.POSIXct('2022-09-23 17:20:00', tz="Pacific/Tahiti"))%>%
+  filter(DateTime < as.POSIXct('2022-09-25 11:00:00', tz="Pacific/Tahiti"))
 ```
-
 
 # Temperature calibrations 
 
@@ -217,7 +223,6 @@ df_temp_cor %>%
     stat_smooth(method="lm")
 ```
 
-
 The formula for calculating calibrations will be:  
 
 (Logger value in C * coef) + intercept = calibrated value in C
@@ -232,6 +237,7 @@ light_plot<-cal_light%>%
   
   ggplot(aes(x=DateTime, y=light, colour=logger))+
   geom_line()+
+  
   theme_classic(); light_plot
 ```
 
@@ -246,9 +252,33 @@ odyssey_plot<-cal_light%>%
   theme_classic(); odyssey_plot
 ```
 
-## 2. Calculate correlation curves for all loggers  
+Plot only the pendant loggers.  
+```{r}
+pendant_light_plot<-cal_light%>%
+  gather(value=light, key=logger, -DateTime)%>%
+  filter(!logger=="15643")%>%
+  
+  ggplot(aes(x=DateTime, y=light, colour=logger))+
+  geom_line()+
+  theme_classic(); pendant_light_plot
+```
 
-Run models for each logger against the standard.  
+## 2. Calculate mean pendant Lux value
+
+This will be our mean Lux value that we will calibrate all else to using an offset calculation using an offset method.    
+
+The Odyssey logger was logging over intervals of 10 minutes. Since the pendants are reading in instantaneous Lux, we are going to first calibrate the pendant loggers Lux values to the mean value of all pendant loggers as we did above for pendant temperature values. We will then apply a conversion factor (0.0185) to convert Lux to PPFD (PAR, umol m2 s) as calculated by Apogee for sunlight. https://www.apogeeinstruments.com/conversion-ppfd-to-lux/   
+
+Calculate mean pendant light values.  
+```{r}
+cal_light<-cal_light%>%
+  select(!'15643')%>%
+  mutate(mean_lux=rowMeans(across(pendant_list), na.rm=TRUE))
+```
+
+## 3. Calculate correlation curves for all loggers  
+
+Run models for each logger against the group mean.    
 ```{r}
 df_light_cor<-cal_light%>%
   select(!DateTime)
@@ -264,10 +294,11 @@ light_output<-purrr::map(
   # An lm call with the formula as follow.
   # here the .x is replace by a new variable 
   # in each iteration
-  ~lm(`15643` ~ .x, data = df_light_cor)
+  ~lm(mean_lux ~ .x, data = df_light_cor)
   ) %>%
 
-  # Then summarise each output with broom::tidy
+
+   # Then summarise each output with broom
   purrr::map(broom::tidy) %>%
 
   # bind all summary
@@ -282,7 +313,6 @@ light_output<-purrr::map(
   rename(intercept=`(Intercept)`)%>%
   rename(logger="variable")
 
-light_output
 ```
 
 View the results.  
@@ -299,23 +329,53 @@ View plots of each logger to the Odyssey logger.
 
 ```{r}
 df_light_cor %>%
-  gather(-`15643`, key = "var", value = "value") %>% 
-  ggplot(aes(x = value, y = `15643`)) +
+  gather(-mean_lux, key = "var", value = "value") %>% 
+  ggplot(aes(x = mean_lux, y = value)) +
     facet_wrap(~ var, scales = "free") +
     geom_point() +
-    ylab("Odyssey Logger Integrated PAR")+
-    xlab("Pendant Logger Lux")+
+    xlab("Pendant Group Mean")+
+    ylab("Pendant Logger Lux")+
     stat_smooth(method="lm")
 ```
 
 The formula for calculating calibrations will be:  
 
-(Logger value in lux * coef) + intercept = calibrated value in integrated PAR
+(Logger value in lux * coef) + intercept = calibrated value  
 
+## 4. Finally, apply the Lux to PAR conversion factor to view light values in PAR 
 
+This will need to be applied to scripts analyzing light data after applying the lux calibration value.  
 
+```{r}
+df_light_cor %>%
+  gather(-mean_lux, key = "var", value = "value") %>% 
+  mutate(par=value*0.0185)%>%
+  
+  ggplot(aes(x = value, y = par)) +
+    facet_wrap(~ var, scales = "free") +
+    geom_point() +
+    ylab("PAR")+
+    xlab("LuxLux")+
+    stat_smooth(method="lm")
+```
 
+Maximum PAR values were 400-600 which is the range expected from the tank systems.  
 
+View a time series of light data with PAR values.  
+
+Plot only the pendant loggers.  
+```{r}
+pendant_par_plot<-cal_light%>%
+  gather(-DateTime, key = "var", value = "value") %>% 
+  filter(!var=="15643")%>%
+  mutate(par=value*0.0185)%>%
+  #select(!value)%>%
+  #spread(key="var", value="par")%>%
+
+  ggplot(aes(x=DateTime, y=par, colour=var))+
+  geom_line()+
+  theme_classic(); pendant_par_plot
+```
 
 
 

@@ -47,6 +47,8 @@ pendants <- setNames(pendant.files, pendant.files) %>%
   mutate(logger=sub(".*/", "", logger))%>% #remove the path name
   mutate(logger=sub("_.*", "", logger)) #keep only the serial number 
 
+pendants$DateTime<-as.POSIXct(pendants$DateTime, format="%m/%d/%y %H:%M:%S", tz="Pacific/Tahiti")
+
 #adjust time to correct values and force time zone
 pendants$DateTime <- force_tz(pendants$DateTime, tzone = "Pacific/Tahiti")
 ```
@@ -85,20 +87,28 @@ pendants<-pendants%>%
 
 ## Apply light calibrations  
 
-Read in calibration output file with the intercept and coefficients for calibration.  
+Apply a lux to PPFD (µmol m-2 s-1) conversion factor (0.0185) as provided by Apogee for sunlight. https://www.apogeeinstruments.com/conversion-ppfd-to-lux/  
+
+Read in calibration output file with the intercept and coefficients for calibration that was calculated as an offset to the mean Lux value from all pendant loggers.  
 ```{r}
 light_cal<-read_csv("output/environmental/light_logger_calibrations.csv")
 light_cal$logger<-as.character(light_cal$logger)
 ```
 
-Generate a calibrated light column in our logger dataframe.  
+Apply the calibrations.   
 ```{r}
 pendants<-left_join(pendants, light_cal, by="logger")
 
 pendants<-pendants%>%
-  mutate(PAR.calibrated=light.lux*coef+intercept)%>%
+  mutate(lux.calibrated=light.lux*coef+intercept)%>%
   select(!coef)%>%
   select(!intercept)
+```
+
+Apply a conversion factor to convert lux to PAR.  
+```{r}
+pendants<-pendants%>%
+  mutate(par=lux.calibrated*0.0185)
 ```
 
 ## Plot temperature    
@@ -106,7 +116,7 @@ pendants<-pendants%>%
 Plot over time by tank  
 ```{r}
 temp_plot<-pendants%>%
-  filter(DateTime > '2022-09-26 11:20:00')%>% 
+  filter(DateTime > as.POSIXct('2022-09-26 11:20:00', tz="Pacific/Tahiti"))%>% 
   
   ggplot(aes(x=DateTime, y=temp.calibrated, colour=tank))+
   geom_line()+
@@ -115,220 +125,29 @@ temp_plot<-pendants%>%
 
 Oct 10, 2022: Tanks 1, 2, and 3 have been experiencing a spike in temperature in the morning hours. This is due to the way the sun hits the tanks in the morning from the side. We can move the experiment to a different water table section. This was completed on 10/11/2022.  
 
+Temperature was even throughout tanks after this date.  
+
 ## Plot light     
 
-Plot over time by tank  
+Plot over time by tank in par units  
 ```{r}
 light_plot<-pendants%>%
-  ggplot(aes(x=DateTime, y=PAR.calibrated, colour=tank))+
-  ylab("Integrated PAR")+
+  ggplot(aes(x=DateTime, y=par, colour=tank))+
+  ylab("PAR (umol m2 s)")+
   geom_line()+
   theme_classic(); light_plot
 ```
 
-Plot by lux (non calibrated)  
+Plot by lux units   
 ```{r}
 lux_plot<-pendants%>%
-  ggplot(aes(x=DateTime, y=light.lux, colour=tank))+
-  ylab("Light Lux")+
+  ggplot(aes(x=DateTime, y=lux.calibrated, colour=tank))+
+  ylab("Light (Lux)")+
   geom_line()+
   theme_classic(); lux_plot
 ```
 
 Oct 10, 2022: Tanks 1, 2, and 3 have been experiencing a spike in light in the morning hours. This is due to the way the sun hits the tanks in the morning from the side. We can move the experiment to a different water table section. This was completed on 10/11/2022.    
-Oct 10, 2022: We need to revisit the light logger calibration. PAR values are higher than expected from the daily measurements.  
-<!-- # Loggers: Pendants in larval tanks     -->
-
-<!-- ## Read in files   -->
-
-<!-- Read in Hobo Pendant files   -->
-<!-- ```{r} -->
-<!-- pendant.files.larvae <- list.files(path="data/environmental/loggers/larvae", pattern="*.xlsx", full.names=TRUE) -->
-
-<!-- pendants.larvae <- setNames(pendant.files.larvae, pendant.files.larvae) %>% -->
-<!--    map_dfr(read_excel, .id = "logger") %>% -->
-<!--    rename(DateTime=`Date-Time (French Polynesia Standard Time)`, temp.C=`Ch: 1 - Temperature   (°C )`, light.lux=`Ch: 2 - Light   (lux)`)%>% -->
-<!--   select(!`#`)%>% -->
-<!--   mutate(logger=sub(".*/", "", logger))%>% #remove the path name -->
-<!--   mutate(logger=sub("_.*", "", logger)) #keep only the serial number  -->
-
-<!-- #adjust time to correct values and force time zone -->
-<!-- pendants.larvae$DateTime <- force_tz(pendants.larvae$DateTime, tzone = "Pacific/Tahiti") -->
-<!-- ``` -->
-
-<!-- ## Read in treatment information   -->
-
-<!-- Read in metadata that assigns a pendant serial number to a tank number and/or treatment.   -->
-<!-- ```{r} -->
-<!-- metadata_larvae<-read_csv("data/environmental/loggers/larvae/logger_metadata_larvae.csv") -->
-<!-- metadata_larvae$logger<-as.character(metadata_larvae$logger) -->
-<!-- ``` -->
-
-<!-- Assign treatment information to logger data.   -->
-<!-- ```{r} -->
-<!-- pendants.larvae<-left_join(pendants.larvae, metadata_larvae, by="logger") -->
-<!-- pendants.larvae$tank<-as.factor(pendants.larvae$tank) -->
-<!-- ``` -->
-
-<!-- ## Apply tempreature calibrations   -->
-
-<!-- Read in calibration output file with the intercept and coefficients for calibration.   -->
-<!-- ```{r} -->
-<!-- temp_cal<-read_csv("output/environmental/temperature_logger_calibrations.csv") -->
-<!-- temp_cal$logger<-as.character(temp_cal$logger) -->
-<!-- ``` -->
-
-<!-- Generate a calibrated temperature column in our logger dataframe.   -->
-<!-- ```{r} -->
-<!-- pendants.larvae<-left_join(pendants.larvae, temp_cal, by="logger") -->
-
-<!-- pendants.larvae<-pendants.larvae%>% -->
-<!--   mutate(temp.calibrated=temp.C*coef+intercept)%>% -->
-<!--   select(!coef)%>% -->
-<!--   select(!intercept) -->
-<!-- ``` -->
-
-<!-- ## Apply light calibrations   -->
-
-<!-- Read in calibration output file with the intercept and coefficients for calibration.   -->
-<!-- ```{r} -->
-<!-- light_cal<-read_csv("output/environmental/light_logger_calibrations.csv") -->
-<!-- light_cal$logger<-as.character(light_cal$logger) -->
-<!-- ``` -->
-
-<!-- Generate a calibrated light column in our logger dataframe.   -->
-<!-- ```{r} -->
-<!-- pendants.larvae<-left_join(pendants.larvae, light_cal, by="logger") -->
-
-<!-- pendants.larvae<-pendants.larvae%>% -->
-<!--   mutate(PAR.calibrated=light.lux*coef+intercept)%>% -->
-<!--   select(!coef)%>% -->
-<!--   select(!intercept) -->
-<!-- ``` -->
-
-<!-- ## Plot temperature     -->
-
-<!-- Plot over time by tank   -->
-<!-- ```{r} -->
-<!-- temp_plot_larvae<-pendants.larvae%>% -->
-
-<!--   ggplot(aes(x=DateTime, y=temp.calibrated, colour=tank))+ -->
-<!--   geom_line()+ -->
-<!--   theme_classic(); temp_plot_larvae -->
-<!-- ``` -->
-
-<!-- Oct 10, 2022: Tanks 1, 2, and 3 have been experiencing a spike in temperature in the morning hours. This is due to the way the sun hits the tanks in the morning from the side. We can move the experiment to a different water table section. This was completed on 10/11/2022.   -->
-
-<!-- ## Plot light      -->
-
-<!-- Plot over time by tank   -->
-<!-- ```{r} -->
-<!-- light_plot_larvae<-pendants.larvae%>% -->
-<!--   ggplot(aes(x=DateTime, y=PAR.calibrated, colour=tank))+ -->
-<!--   ylab("Integrated PAR")+ -->
-<!--   geom_line()+ -->
-<!--   theme_classic(); light_plot_larvae -->
-<!-- ``` -->
-
-<!-- Plot by lux (non calibrated)   -->
-<!-- ```{r} -->
-<!-- lux_plot_larvae<-pendants.larvae%>% -->
-<!--   ggplot(aes(x=DateTime, y=light.lux, colour=tank))+ -->
-<!--   ylab("Light Lux")+ -->
-<!--   geom_line()+ -->
-<!--   theme_classic(); lux_plot_larvae -->
-<!-- ``` -->
-
-
-
-<!-- # Loggers: Hobo black loggers in parent tanks   -->
-
-<!-- ## Read in files   -->
-
-<!-- Read in Hobo black logger files   -->
-<!-- ```{r} -->
-<!-- hobo.files <- list.files(path="data/environmental/loggers/parents", pattern="*.csv", full.names=TRUE) -->
-
-<!-- hobo <- setNames(hobo.files, hobo.files) %>% -->
-<!--    map_dfr(read_csv, .id = "logger", skip=1)%>% -->
-<!--    mutate(logger=sub(".*/", "", logger))%>% #remove the path name -->
-<!--    mutate(logger=sub("_.*", "", logger))%>% #keep only the serial number -->
-<!--    select(!'#')%>% -->
-<!--    select(logger, `Date Time, GMT-10:00`, starts_with("Temp"))%>% -->
-<!--    rename(DateTime=`Date Time, GMT-10:00`, Temp1=`Temp, °C (LGR S/N: 20444033, SEN S/N: 20444033, LBL: C)`, Temp2=`Temp, °C (LGR S/N: 20444040, SEN S/N: 20444040)`, Temp3=`Temp, °C (LGR S/N: 20719656, SEN S/N: 20719656, LBL: C)`, Temp4=`Temp, °C (LGR S/N: 20946644, SEN S/N: 20946644)`)%>% -->
-<!--    mutate(temp.C = coalesce(Temp1, Temp2, Temp3, Temp4))%>% -->
-<!--   select(logger, DateTime, temp.C) -->
-
-<!-- #adjust time to correct values and force time zone -->
-<!-- hobo$DateTime<-format(as.POSIXct(hobo$DateTime,format='%m/%d/%y %I:%M:%S %p'),format="%m/%d/%y %H:%M:%S", tz="Pacific/Tahiti") -->
-<!-- hobo$DateTime<-as.POSIXct(hobo$DateTime,format="%m/%d/%y %H:%M:%S", tz="Pacific/Tahiti") -->
-<!-- hobo$DateTime <- force_tz(hobo$DateTime, tzone = "Pacific/Tahiti") -->
-<!-- ``` -->
-
-<!-- ## Read in treatment information   -->
-
-<!-- Read in metadata that assigns a pendant serial number to a tank number and/or treatment.   -->
-<!-- ```{r} -->
-<!-- metadata_parent<-read_csv("data/environmental/loggers/parents/logger_metadata_parents.csv") -->
-<!-- metadata_parent$logger<-as.character(metadata_parent$logger) -->
-<!-- ``` -->
-
-<!-- Assign treatment information to logger data.   -->
-<!-- ```{r} -->
-<!-- hobo<-left_join(hobo, metadata_parent, by="logger") -->
-<!-- ``` -->
-
-<!-- ## Apply tempreature calibrations   -->
-
-<!-- Read in calibration output file with the intercept and coefficients for calibration.   -->
-<!-- ```{r} -->
-<!-- temp_cal<-read_csv("output/environmental/temperature_logger_calibrations.csv") -->
-<!-- temp_cal$logger<-as.character(temp_cal$logger) -->
-<!-- ``` -->
-
-<!-- Generate a calibrated temperature column in our logger dataframe.   -->
-<!-- ```{r} -->
-<!-- hobo<-left_join(hobo, temp_cal, by="logger") -->
-
-<!-- hobo<-hobo%>% -->
-<!--   mutate(temp.calibrated=temp.C*coef+intercept)%>% -->
-<!--   select(!coef)%>% -->
-<!--   select(!intercept) -->
-<!-- ``` -->
-
-<!-- ## Plot temperature     -->
-
-<!-- Plot over time by tank   -->
-<!-- ```{r} -->
-<!-- temp_plot_parents<-hobo%>% -->
-<!--   #filter(DateTime < '2022-10-0 11:20:00')%>% -->
-<!--   mutate(temp.calibrated = replace(temp.calibrated, temp.calibrated<25.5, NA))%>% -->
-
-<!--   ggplot(aes(x=DateTime, y=temp.calibrated, colour=tank))+ -->
-<!--   geom_line()+ -->
-<!--   theme_classic(); temp_plot_parents -->
-<!-- ``` -->
-
-<!-- # Generate figure of all logger data   -->
-
-<!-- temp_plot -->
-<!-- light_plot -->
-<!-- lux_plot -->
-<!-- temp_plot_parents -->
-
-<!-- temp_plot_larvae -->
-<!-- light_plot_larvae -->
-<!-- lux_plot_larvae -->
-
-<!-- ```{r} -->
-<!-- temp_plot_l<-temp_plot+theme(legend.position="none") -->
-<!-- light_plot_l<-light_plot+theme(legend.position="none") -->
-
-<!-- logger_plots<-plot_grid(temp_plot, light_plot, lux_plot, temp_plot_parents, temp_plot_larvae, light_plot_larvae, lux_plot_larvae, nrow=7, ncol=1)   -->
-
-<!-- ggsave(filename="figures/environmental/loggers.png", plot=logger_plots, dpi=300, width=9, height=30, units="in") -->
-
-<!-- ``` -->
 
 # Daily measurements  
 
@@ -389,14 +208,47 @@ Calculate the mean light value (PAR) as an average of all light measurements in 
 daily_calc$par.center <- as.numeric(as.character(daily_calc$par.center))
 ```
 
-change data format to long format 
+## Correct salinity values  
+
+The salinity probe was calibrated on 20221026 by HP to 1000 uS/cm standard. The measurements before this date need to be corrected by applying a conversion factor to all measurements before 20221026.  
+
 ```{r}
-daily_calc.long <-daily_calc %>% pivot_longer(cols=temp.C:flow.L.min,
+#calculate the average salinity values before and after the calibration 
+before<-daily_calc%>%
+  filter(date<"2022-10-26")%>%
+  summarise(correction=mean(sal.psu)); before 
+#before = 38.1
+
+after<-daily_calc%>%
+  filter(date>"2022-10-25")%>%
+  summarise(correction=mean(sal.psu)); after 
+#after=35.1
+
+correction<-before-after; correction
+#correction of 3.03 psu
+```
+
+Apply the correction by subtracting the value from all measurements before 2022-10-26. 
+```{r}
+daily_calc<-daily_calc%>%
+  mutate(sal.psu.cor=ifelse(date<="2022-10-26", sal.psu-correction$correction, sal.psu))
+```
+
+This conversion value is the same calculated for larval tanks in AH scripts.  
+
+We will now use sal.psu.cor for future analyses.
+
+## Change data format to long format 
+```{r}
+daily_calc.long <-daily_calc %>% 
+  select(!sal.psu)%>%
+  pivot_longer(cols=temp.C:sal.psu.cor,
   names_to = "metric",
   values_to = "value")
 ```
 
 ## Plot metrics of interest  
+
 Plot by tank.  
 ```{r}
 daily_tanks<-daily_calc.long %>%
@@ -450,7 +302,6 @@ daily_plots<-exposure.data %>%
 
 ggsave(filename="figures/environmental/treatment_daily_measurements.png", plot=daily_plots, dpi=300, width=8, height=10, units="in")
 ```
-
 
 ## Test for differences between tanks  
 ```{r}
