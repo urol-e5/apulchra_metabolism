@@ -111,6 +111,18 @@ pendants<-pendants%>%
   mutate(par=lux.calibrated*0.0185)
 ```
 
+## Add treatment information  
+
+```{r}
+pendants<-pendants%>%
+  mutate(treatment=ifelse(tank=='1', 'Light-Food', 
+                          ifelse(tank=='2', 'Light-NoFood', 
+                                 ifelse(tank=='3', 'Shade-Food', 
+                                        ifelse(tank=='4', 'Light-Food', 
+                                               ifelse(tank=='5', 'Shade-Food', 
+                                                      ifelse(tank=='6', 'Light-NoFood', NA)))))))
+```
+
 ## Plot temperature    
 
 Plot over time by tank  
@@ -126,6 +138,45 @@ temp_plot<-pendants%>%
 Oct 10, 2022: Tanks 1, 2, and 3 have been experiencing a spike in temperature in the morning hours. This is due to the way the sun hits the tanks in the morning from the side. We can move the experiment to a different water table section. This was completed on 10/11/2022.  
 
 Temperature was even throughout tanks after this date.  
+
+Plot temperature time series by treatment.  
+```{r}
+temp_plot_treatment<-pendants%>%
+  
+  ggplot(aes(x=DateTime, y=temp.calibrated, colour=treatment))+
+  geom_line()+
+  ylim(26, 29)+
+  scale_colour_brewer(palette = "Dark2", name="Treatment")+
+  geom_vline(xintercept = as.POSIXct("2022-10-18 10:00:00", tz="Pacific/Tahiti"), linetype="dashed", 
+                color = "black", size=0.5)+
+  ylab("Temperature (°C)")+
+  xlab("Date")+
+  theme_classic(); temp_plot_treatment
+
+ggsave("figures/environmental/timeseries_temp_treatment.png", temp_plot_treatment, width=8, height=6)
+```
+
+```{r}
+temp_plot_treatment_smooth<-pendants%>%
+  group_by(treatment, DateTime)%>%
+  summarise(mean=mean(temp.calibrated, na.rm=TRUE), sd=sd(temp.calibrated, na.rm=TRUE), sem=sd/sqrt(6), upper=mean+sd, lower=mean-sd)%>%
+  
+  ggplot(aes(x=DateTime, y=mean, colour=treatment, fill=treatment))+
+  #geom_line()+
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 1, colour = NA, show.legend=FALSE) +
+  geom_smooth(method="loess", span=0.1, se=FALSE, aes(fill=treatment), alpha=0.3) +
+  ylim(26, 29)+
+  ylab("Temperature (°C)")+
+  xlab("Date")+
+  scale_fill_brewer(palette = "Dark2", name="Treatment")+
+  scale_colour_brewer(palette = "Dark2", name="Treatment")+
+  geom_vline(xintercept = as.POSIXct("2022-10-18 10:00:00", tz="Pacific/Tahiti"), linetype="dashed", 
+                color = "black", size=0.5)+
+  theme_classic(); temp_plot_treatment_smooth
+
+ggsave("figures/environmental/timeseries_temp_smooth.png", temp_plot_treatment_smooth, width=8, height=6)
+```
+
 
 ## Plot light     
 
@@ -148,6 +199,42 @@ lux_plot<-pendants%>%
 ```
 
 Oct 10, 2022: Tanks 1, 2, and 3 have been experiencing a spike in light in the morning hours. This is due to the way the sun hits the tanks in the morning from the side. We can move the experiment to a different water table section. This was completed on 10/11/2022.    
+
+Plot light time series by treatment.  
+```{r}
+light_plot_treatment<-pendants%>%
+  
+  ggplot(aes(x=DateTime, y=par, colour=treatment))+
+  geom_line()+
+  scale_colour_brewer(palette = "Dark2", name="Treatment")+
+  geom_vline(xintercept = as.POSIXct("2022-10-18 10:00:00", tz="Pacific/Tahiti"), linetype="dashed", 
+                color = "black", size=0.5)+
+  ylab("PAR")+
+  xlab("Date")+
+  theme_classic(); light_plot_treatment
+
+ggsave("figures/environmental/timeseries_light_treatment.png", light_plot_treatment, width=8, height=6)
+```
+
+```{r}
+light_plot_treatment_smooth<-pendants%>%
+  group_by(treatment, DateTime)%>%
+  summarise(mean=mean(par, na.rm=TRUE), sd=sd(par, na.rm=TRUE), sem=sd/sqrt(6), upper=mean+sd, lower=mean-sd)%>%
+  
+  ggplot(aes(x=DateTime, y=mean, colour=treatment, fill=treatment))+
+  #geom_line()+
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 1, colour = NA, show.legend=FALSE) +
+  geom_smooth(method="loess", span=0.1, se=FALSE, aes(fill=treatment), alpha=0.3) +
+  ylab("PAR")+
+  xlab("Date")+
+  scale_fill_brewer(palette = "Dark2", name="Treatment")+
+  scale_colour_brewer(palette = "Dark2", name="Treatment")+
+  geom_vline(xintercept = as.POSIXct("2022-10-18 10:00:00", tz="Pacific/Tahiti"), linetype="dashed", 
+                color = "black", size=0.5)+
+  theme_classic(); light_plot_treatment_smooth
+
+ggsave("figures/environmental/timeseries_light_smooth.png", light_plot_treatment_smooth, width=8, height=6)
+```
 
 # Daily measurements  
 
