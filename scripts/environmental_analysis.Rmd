@@ -135,7 +135,7 @@ temp_plot<-pendants%>%
   theme_classic(); temp_plot
 ```
 
-Oct 10, 2022: Tanks 1, 2, and 3 have been experiencing a spike in temperature in the morning hours. This is due to the way the sun hits the tanks in the morning from the side. We can move the experiment to a different water table section. This was completed on 10/11/2022.  
+Oct 10, 2022: Tanks 1, 2, and 3 have been experiencing a spike in temperature in the morning hours. This is due to the way the sun hits the tanks in the morning from the side. We moved the experiment to a different water table section. This was completed on 10/11/2022.  
 
 Temperature was even throughout tanks after this date.  
 
@@ -198,7 +198,7 @@ lux_plot<-pendants%>%
   theme_classic(); lux_plot
 ```
 
-Oct 10, 2022: Tanks 1, 2, and 3 have been experiencing a spike in light in the morning hours. This is due to the way the sun hits the tanks in the morning from the side. We can move the experiment to a different water table section. This was completed on 10/11/2022.    
+Oct 10, 2022: Tanks 1, 2, and 3 have been experiencing a spike in light in the morning hours. This is due to the way the sun hits the tanks in the morning from the side. We moved the experiment to a different water table section. This was completed on 10/11/2022.    
 
 Plot light time series by treatment.  
 ```{r}
