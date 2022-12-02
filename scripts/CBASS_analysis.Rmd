@@ -1,0 +1,259 @@
+---
+title: "CBASS data analysis"
+author: "ross"
+date: "12/2/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r}
+library(drc)
+library(quantreg)
+library(mcr)
+library(broom)
+library(lubridate)
+library(tidyverse)
+
+# Create custom ggplot theme
+theme_custom <- function() {
+  theme_bw(base_size = 10, base_family = "Arial") %+replace%
+    theme(
+      panel.grid.major = element_blank(), 
+      panel.grid.minor = element_blank(), 
+      panel.background = element_blank(),
+      panel.border = element_rect(color = "black", fill = NA),
+      legend.background = element_rect(fill = NA, colour = NA),
+      axis.title = element_text(size = 7),
+      axis.text = element_text(size = 5)
+    )
+}
+
+# # Labeller for treatments
+# treatment_labeller <- function(variable, value){
+#   return(list(
+#   'Normal'="High light",
+#   'lowLight'="Low light")[value])
+# }
+# 
+
+# Function to pivot IPAM data to long form with column for AOI
+ipam_convert <- function(data) {
+  data %>% select_if(~ !any(is.na(.))) %>%
+  pivot_longer(cols = starts_with("f") | starts_with("y")) %>%
+  separate(name, into = c("var", "aoi"), sep = "(?<=[A-Za-z_])(?=[0-9])")
+}
+```
+
+# Import I-PAM data
+```{r}
+# Import PAM data
+# List PAM files from 2021-09-06
+pamfiles <- list.files(path = "data/CBASS/IPAM_data", pattern = "*.csv", full.names = T)
+
+# Import data from each file
+pam1 <- pamfiles %>%
+  map_dfr(read_delim, delim = ";", .id = "file_id") %>%
+  janitor::clean_names() %>%
+  mutate(file_id = basename(pamfiles[as.numeric(file_id)]),
+         date = as_date(date, format = "%d.%m.%y"))
+
+# For each source file, convert to long form data with F, FM, and YII for each AOI
+pam2 <- pam1 %>%
+  nest(-file_id, -date) %>%
+  mutate(data2 = map(data, ipam_convert)) %>%
+  unnest(data2) %>%
+  mutate(rack = parse_number(file_id)) %>%
+  select(rack, aoi, var, value)
+
+# Join PAM data with rack order information (which PAM file corresponds to which rack of corals)
+pammd <- read_csv("data/CBASS/CBASS_metadata.csv") %>%
+  mutate(max_temp = temperature) %>%
+  select(rack = rack.rep, position, frag.id, max_temp)
+
+pam <- pam2 %>%
+  mutate(position = ceiling(as.numeric(aoi)/2)) %>%
+  full_join(pammd)
+
+# Join PAM data with nutritional treatment information
+md <- read_csv("data/fragments.csv") %>%
+  select(frag.id = fragment, tank, treatment)
+
+pam <- left_join(pam, md)
+```
+
+# Fit dose-response curves
+```{r}
+# Get Fv/Fm data and tidy
+df <- pam %>%
+  pivot_wider(names_from = var, values_from = value) %>%
+  mutate(fvfmraw = y_ii_, fvfm = y_ii_, max_temp = as.numeric(max_temp),
+         geno = str_sub(frag.id, 1, 1)) %>%
+  select(frag.id, geno, treatment, tank, rack, position, max_temp, f, fm, fvfmraw, fvfm)
+
+
+# 
+# # Replace significant outlier for geno129, normal light, 30°C, where Fv/Fm was < 0.4, while fitted curve suggests should be around 0.55. This significantly affects ED50 so changing this values to 0.55.
+# df[df$geno == 129 & df$treatment == "Normal" & df$max_temp == 30, "fvfm"] <- 0.5
+
+# Define function to fit 3-parameter LL model to data and return NULL if fitting error
+ll3 <- function(data) {
+  drm(fvfm ~ max_temp, data = data,
+      fct = LL.3(names = c("hill", "max", "ED50")),
+      upperl = c(100, 0.7, 40),
+      lowerl = c(20, 0.3, 30))}
+tryll3 <- possibly(ll3, otherwise = NULL)
+
+# Fit model to each coral, get parameters, fitted values, and residuals
+initmods <- df %>%
+  nest(data = c(frag.id, tank, rack, position, max_temp, f, fm, fvfmraw, fvfm)) %>%
+  # Fit the model to each coral
+  mutate(ll3 = map(data, tryll3)) %>%
+  # Get model parameters and fitted values/residuals
+  mutate(pars = map(ll3, tidy),
+         pred = map2(ll3, data, ~augment(.x, drop_na(.y, fvfm))))
+
+# Extract ed50 parameter values from model fits
+ed50 <- initmods %>% 
+  select(treatment, geno, pars) %>%
+  unnest(pars) %>%
+  filter(term == "ED50")
+
+ggplot(ed50, aes(x = treatment, y = estimate, color = geno, group = geno)) +
+  geom_point() +
+  geom_line()
+
+# Collect raw data, fitted values, and diagnostics
+vals <- initmods %>%
+  select(treatment, geno, pred) %>%
+  unnest(pred) %>%
+  full_join(ed50) %>%
+  full_join(df) %>%
+  rename(ed50 = estimate) %>%
+  mutate(problem = "none")
+
+```
+
+```{r drc_diagnostics}
+
+# #### diagnostics
+# Extract hill parameter values from model fits
+hill <- initmods %>%
+  select(treatment, geno, pars) %>%
+  unnest(pars) %>%
+  filter(term == "hill")
+ggplot(hill) +
+  geom_histogram(aes(x = estimate))
+hill %>% arrange(estimate)
+# 
+# maxes <- initmods %>%
+#   select(nursery, geno, pars) %>%
+#   unnest(pars) %>%
+#   filter(term == "max")
+# ggplot(maxes) +
+#   geom_histogram(aes(x = estimate))
+# maxes %>% arrange(-estimate)
+
+# # Identify problematic data points based on cook's distance and residuals
+counts <- vals %>%
+  group_by(treatment, geno) %>%
+  summarise(n = sum(!is.na(fvfm)))
+dff <- vals %>%
+  left_join(counts) %>%
+  group_by(treatment, geno) %>%
+  mutate(cooksd.thresh = 4/n) %>%   # Calculate cook's distance threshold as 4/n
+  mutate(max_to_remove = floor(n * 0.2)) %>%
+  ungroup() %>%
+  mutate(problem = case_when(.cooksd > cooksd.thresh ~ "high cook's distance",
+                             TRUE ~ "none")) %>%
+  group_by(treatment, geno, outlier = problem %in% c("high cook's distance", "high residual")) %>%
+  mutate(n.outliers = n(),
+         rank.out = order(.cooksd, decreasing = TRUE)) %>%
+  ungroup() %>%
+  mutate(fvfm = case_when(outlier & rank.out <= max_to_remove ~ .fitted,
+                          TRUE ~ fvfm))
+
+# Refit models without problematic points
+fmods <- dff %>%
+  select(treatment, geno, max_temp, problem, f, fm, fvfmraw, fvfm) %>%
+  nest(data = c(max_temp, f, fm, fvfmraw, fvfm, problem)) %>%
+  # Fit the model to each coral
+  mutate(ll3 = map(data, tryll3)) %>%
+  # Get model parameters and fitted values/residuals
+  mutate(pars = map(ll3, tidy),
+         pred = map2(ll3, data, ~augment(.x, drop_na(.y, fvfm))))
+
+# Extract ed50 parameter values from model fits
+fed50 <- fmods %>%
+  select(treatment, geno, pars) %>%
+  unnest(pars) %>%
+  filter(term == "ED50")
+
+ggplot(fed50, aes(x = treatment, y = estimate, color = geno, group = geno)) +
+  geom_point() +
+  geom_line()
+
+# Collect raw data, fitted values, and ed50 estimates
+fvals <- fmods %>%
+  select(treatment, geno, pred) %>%
+  unnest(pred) %>%
+  full_join(fed50) %>%
+  full_join(select(dff, treatment, geno, max_temp, problem, f, fm, fvfmraw, fvfm)) %>%
+  rename(ed50 = estimate)
+```
+
+```{r}
+# Define function to plot raw data, fitted values, and ed50 for each genotype
+plotfits <- function(data) {
+  ggplot(data = data, aes(x = max_temp)) + 
+    geom_point(pch = 4, size = 1.25,
+               aes(y = fvfmraw, color = factor(problem, levels = c("none", "no  signal",
+                                              "abnormally high",  
+                                              "abnormally high w/ low Ft",  
+                                              "high residual", "high cook's distance")))) + 
+    geom_point(aes(y = fvfm), pch = 1, size = 2) + 
+    geom_line(data = drop_na(data, .fitted), 
+              aes(y = .fitted)) + 
+    geom_vline(data = distinct(data, treatment, geno, ed50),
+               aes(xintercept = ed50), 
+               lwd = 0.2, lty = 2) +
+    geom_text(data = distinct(data, treatment, geno, ed50),
+              aes(x = ed50, y = 0.05, label = round(ed50, 2)), 
+              hjust = 1, nudge_x = -0.2, size = 3) +
+    facet_grid(geno ~ treatment, drop = TRUE) +
+    scale_color_manual(name = "problem", drop = FALSE,
+                       values = c("black", "yellow", "red", "orange", "blue", "turquoise"))
+}
+
+plotfits(fvals)
+```
+
+```{r}
+library(lme4)
+library(emmeans)
+
+mod <- lmerTest::lmer(estimate ~ treatment + (1|geno), data = fed50)
+anova(mod)
+emmeans(mod, specs = "treatment", contr = "pairwise")
+
+mod <- lm(estimate ~ treatment * geno, data = fed50)
+anova(mod)
+emmeans(mod, specs = c("treatment", "geno"))
+```
+
+
+```{r}
+hi <- drm(fvfm ~ max_temp + treatment, data = df,
+      fct = LL.3(names = c("hill", "max", "ED50")),
+      upperl = c(50, 0.7, 40),
+      lowerl = c(20, 0.3, 30))
+
+summary(hi)
+anova(hi)
+tidy(hi)
+```
+
