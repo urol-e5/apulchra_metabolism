@@ -229,14 +229,28 @@ plotfits <- function(data) {
                        values = c("black", "yellow", "red", "orange", "blue", "turquoise"))
 }
 
-plotfits(fvals)
+plotfits(vals)
+
+
+
+
+# Extract ed50 parameter values from model fits
+pars <- initmods %>% 
+  select(treatment, geno, pars) %>%
+  unnest(pars)
+
+pars %>%
+  select(treatment, geno, term, estimate) %>%
+  pivot_wider(names_from = term, values_from = estimate) %>%
+  ggplot(aes(x = hill, y = max)) +
+  geom_point()
 ```
 
 ```{r}
 library(lme4)
 library(emmeans)
 
-mod <- lmerTest::lmer(estimate ~ treatment + (1|geno), data = fed50)
+mod <- lmerTest::lmer(estimate ~ treatment + (1|geno), data = filter(ed50, geno != "C"))
 anova(mod)
 emmeans(mod, specs = "treatment", contr = "pairwise")
 
