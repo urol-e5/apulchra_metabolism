@@ -236,6 +236,20 @@ light_plot_treatment_smooth<-pendants%>%
 ggsave("figures/environmental/timeseries_light_smooth.png", light_plot_treatment_smooth, width=8, height=6)
 ```
 
+Calculate average light values across study. 
+```{r}
+test<-pendants%>%
+  group_by(treatment)%>%
+  mutate(
+    date = date(DateTime),   # Extract date
+    time = format(DateTime, format = "%H:%M:%S"))%>%
+  filter(
+    hour(DateTime) >= 8,    # Keep times after 5am
+    hour(DateTime) < 17     # Remove times after 7pm
+  )%>%
+  summarise(mean=mean(light.lux, na.rm=TRUE), se=sd(light.lux, na.rm=TRUE)/sqrt(6));test
+```
+
 # Daily measurements  
 
 ## Read in file  
@@ -433,3 +447,11 @@ summary(aov(flow.L.min~treatment, data=daily_calc_exposure))
 #Light
 summary(aov(par.center~treatment, data=daily_calc_exposure))
 ```
+
+Summarize between treatments. 
+```{r}
+daily_calc_exposure%>%
+  group_by(treatment)%>%
+  summarise(mean=mean(par.center, na.rm=TRUE), se=sd(par.center, na.rm=TRUE)/sqrt(length(par.center)))
+```
+
